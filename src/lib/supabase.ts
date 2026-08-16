@@ -5,23 +5,11 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-const isPlaceholderValue = (value: string | undefined) => {
-  if (!value) return true;
-  return value.includes('your-project-ref') || value.includes('your-anon-key') || value.includes('your-project') || value.includes('your-anon-key-here');
-};
-
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
     'Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY. ' +
       'Copy .env.example to .env and fill in your Supabase project values, ' +
       'then restart the Expo dev server (env vars are read at bundle time).'
-  );
-}
-
-if (isPlaceholderValue(supabaseUrl) || isPlaceholderValue(supabaseAnonKey)) {
-  throw new Error(
-    'Supabase is not configured yet. Fill in your real project URL and anon key in .env, ' +
-      'enable Anonymous Sign-ins in Supabase, and run the SQL migration before creating a family.'
   );
 }
 
