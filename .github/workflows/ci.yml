@@ -29,7 +29,7 @@ jobs:
       - name: Export Expo web build
         env:
           CI: true
-        run: npx expo export:web --output-dir web-build
+        run: npx expo export --platform web
 
   deploy:
     name: Deploy to Vercel
@@ -47,11 +47,10 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel
 
-      - name: Deploy exported web-build to Vercel
+      - name: Deploy static export to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          cd web-build
-          npx vercel --prod --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --project "$VERCEL_PROJECT_ID" --yes
+          npx vercel --prod --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --project "$VERCEL_PROJECT_ID" --yes ./dist
