@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "My Family of Cars",
+    "slug": "my-family-of-cars",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "familyofcars",
+    "splash": {
+      "backgroundColor": "#0F172A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.keegan.myfamilyofcars",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Add a photo of your car to your family's car tree.",
+        "NSCameraUsageDescription": "Take a photo of your car to add it to your family's car tree."
+      }
+    },
+    "android": {
+      "package": "com.keegan.myfamilyofcars",
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Add a photo of your car to your family's car tree.",
+          "cameraPermission": "Take a photo of your car to add it to your family's car tree."
+        }
+      ],
+      "expo-asset"
+    ]
+  }
+}

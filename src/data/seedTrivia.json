@@ -1,0 +1,82 @@
+[
+  {
+    "make": "Honda",
+    "model": "Civic",
+    "year": 2000,
+    "fact_text": "The Civic has been one of the best-selling compact cars in the US since it launched in 1972.",
+    "fact_type": "history",
+    "source_confidence": "high"
+  },
+  {
+    "make": "Ford",
+    "model": "Mustang",
+    "year": 1965,
+    "fact_text": "The original Mustang was designed to be affordable, sporty, and customizable — a formula that created the 'pony car' category.",
+    "fact_type": "history",
+    "source_confidence": "high"
+  },
+  {
+    "make": "Toyota",
+    "model": "Corolla",
+    "year": 1990,
+    "fact_text": "The Corolla is the best-selling car nameplate in automotive history, with over 50 million sold worldwide.",
+    "fact_type": "trivia",
+    "source_confidence": "high"
+  },
+  {
+    "make": "Chevrolet",
+    "model": "Camaro",
+    "year": 1969,
+    "fact_text": "The 1969 Camaro is one of the most recognizable muscle cars, known for its aggressive styling and big-block V8 options.",
+    "fact_type": "history",
+    "source_confidence": "medium"
+  },
+  {
+    "make": "Volkswagen",
+    "model": "Beetle",
+    "year": 1970,
+    "fact_text": "The original Beetle's rear-mounted, air-cooled engine design stayed remarkably consistent for over 65 years of production.",
+    "fact_type": "spec",
+    "source_confidence": "high"
+  },
+  {
+    "make": "Jeep",
+    "model": "Wrangler",
+    "year": 1997,
+    "fact_text": "The Wrangler's boxy silhouette and round headlights trace their design lineage directly back to WWII military Jeeps.",
+    "fact_type": "history",
+    "source_confidence": "high"
+  },
+  {
+    "make": "Honda",
+    "model": "Accord",
+    "year": 1995,
+    "fact_text": "The Accord was one of the first Japanese cars to be manufactured in the United States, starting in Marysville, Ohio in 1982.",
+    "fact_type": "history",
+    "source_confidence": "high"
+  },
+  {
+    "make": "Toyota",
+    "model": "Camry",
+    "year": 2005,
+    "fact_text": "The Camry has been the best-selling car in America for the majority of years since 1997.",
+    "fact_type": "trivia",
+    "source_confidence": "high"
+  },
+  {
+    "make": "Ford",
+    "model": "F-150",
+    "year": 2010,
+    "fact_text": "The F-Series has been the best-selling vehicle (not just truck) in the US for decades running.",
+    "fact_type": "trivia",
+    "source_confidence": "high"
+  },
+  {
+    "make": "Mazda",
+    "model": "Miata",
+    "year": 1990,
+    "fact_text": "The original Miata (MX-5) was inspired by classic British roadsters but built with Japanese reliability, and holds the Guinness World Record for best-selling two-seat convertible.",
+    "fact_type": "trivia",
+    "source_confidence": "high"
+  }
+]
