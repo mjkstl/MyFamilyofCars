@@ -41,12 +41,24 @@ jobs:
           path: ./web-build
 
   deploy:
-    name: Deploy to GitHub Pages
+    name: Deploy to Vercel
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
     steps:
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Deploy exported web-build to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          # Deploy the exported static web build directory to Vercel
+          npx vercel --prod ./web-build --token "$VERCEL_TOKEN" --confirm
