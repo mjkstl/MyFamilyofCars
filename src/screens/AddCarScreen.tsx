@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,17 +12,43 @@ import {
   SafeAreaView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 
 import { useFamily } from '@/hooks/useFamily';
+import { useMembers } from '@/hooks/useMembers';
 import { useCars } from '@/hooks/useCars';
 import { searchMakes, getModelsForMake } from '@/utils/nhtsa';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const COLORS = ['#DC2626', '#2563EB', '#16A34A', '#EAB308', '#000000', '#FFFFFF', '#71717A', '#EA580C'];
 
+// This screen is mounted two different ways: as the bare "Add Car" tab
+// (no route params — defaults to yourself), and as a stack screen pushed
+// from a member's carousel via its "+" button (params.member preselected).
+// route.params is only defined in the second case, so it's typed optional.
+type AddCarRouteProp = RouteProp<{ AddCarForMember: { member?: { id: string } } }, 'AddCarForMember'>;
+
 export default function AddCarScreen() {
-  const { currentMember } = useFamily();
-  const { addCar } = useCars(currentMember?.id);
+  const navigation = useNavigation();
+  const route = useRoute<AddCarRouteProp>();
+  const { family, currentMember } = useFamily();
+  const { members } = useMembers(family?.id);
+
+  const preselectedMemberId = route.params?.member?.id;
+  const [selectedMemberId, setSelectedMemberId] = useState<string | undefined>(
+    preselectedMemberId ?? currentMember?.id
+  );
+
+  // If the screen mounts before currentMember has loaded (tab case) or
+  // before params are read (stack case), fall back once either becomes
+  // available rather than staying stuck on undefined.
+  const effectiveMemberId = selectedMemberId ?? preselectedMemberId ?? currentMember?.id;
+  const selectedMember = useMemo(
+    () => members.find((m) => m.id === effectiveMemberId),
+    [members, effectiveMemberId]
+  );
+
+  const { addCar } = useCars(effectiveMemberId);
 
   const [make, setMake] = useState('');
   const [makeSuggestions, setMakeSuggestions] = useState<string[]>([]);
@@ -94,8 +120,15 @@ export default function AddCarScreen() {
         },
         photoUri ?? undefined
       );
-      Alert.alert('Added!', `${yearNum} ${make} ${model} is now in the tree.`);
+      const forName = selectedMember?.display_name ?? 'the tree';
+      Alert.alert('Added!', `${yearNum} ${make} ${model} is now in ${forName}'s carousel.`);
       reset();
+      // Came from a member's carousel via its "+" button — go back to it
+      // so the newly added car is visible immediately. Opened from the
+      // bare "Add Car" tab has no history to pop, so just clear the form.
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      }
     } catch (err) {
       Alert.alert('Couldn\u2019t save', err instanceof Error ? err.message : String(err));
     } finally {
@@ -103,7 +136,7 @@ export default function AddCarScreen() {
     }
   };
 
-  if (!currentMember) {
+  if (!effectiveMemberId) {
     return (
       <View style={styles.center}>
         <Text>Loading your profile\u2026</Text>
@@ -115,6 +148,30 @@ export default function AddCarScreen() {
     <SafeAreaView style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.heading}>Add a car</Text>
+
+        {!preselectedMemberId && members.length > 1 && (
+          <>
+            <Text style={styles.label}>Whose car is this?</Text>
+            <View style={styles.memberRow}>
+              {members.map((m) => (
+                <Pressable
+                  key={m.id}
+                  onPress={() => setSelectedMemberId(m.id)}
+                  style={[styles.memberChip, m.id === effectiveMemberId && styles.memberChipSelected]}
+                >
+                  <Text
+                    style={[
+                      styles.memberChipText,
+                      m.id === effectiveMemberId && styles.memberChipTextSelected,
+                    ]}
+                  >
+                    {m.display_name}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
 
         <Text style={styles.label}>Make</Text>
         <TextInput style={styles.input} value={make} onChangeText={onMakeChange} placeholder="e.g. Honda" />
@@ -211,6 +268,18 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12, fontSize: 16 },
   suggestionBox: { borderWidth: 1, borderColor: '#eee', borderRadius: 8, marginTop: 4, overflow: 'hidden' },
   suggestion: { padding: 10, fontSize: 15, borderBottomWidth: 1, borderBottomColor: '#f2f2f2' },
+  memberRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  memberChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+  },
+  memberChipSelected: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
+  memberChipText: { fontSize: 14, color: '#333', fontWeight: '500' },
+  memberChipTextSelected: { color: '#fff' },
   colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   swatch: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#ddd' },
   swatchSelected: { borderWidth: 3, borderColor: '#1D4ED8' },

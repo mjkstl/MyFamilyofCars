@@ -9,6 +9,8 @@ const STORAGE_KEYS = {
   memberId: 'familyofcars.memberId',
 } as const;
 
+const familyResetListeners = new Set<() => void>();
+
 /**
  * Wraps a Supabase/PostgREST error with the real code and details visible,
  * e.g. "adding you as the first member failed (42501): new row violates
@@ -73,9 +75,14 @@ export function useFamily() {
 
   useEffect(() => {
     loadPersisted();
+    const handleReset = () => setState({ loading: false, family: null, currentMember: null, error: null });
+    familyResetListeners.add(handleReset);
+    return () => {
+      familyResetListeners.delete(handleReset);
+    };
   }, [loadPersisted]);
 
-  const createFamily = useCallback(async (familyName: string, yourDisplayName: string) => {
+  const createFamily = useCallback(async (familyName: string, yourDisplayName: string, avatarUri?: string | null) => {
     const session = await ensureAnonymousSession();
     if (!session) throw new Error('No auth session.');
 
@@ -107,10 +114,52 @@ export function useFamily() {
       .single();
     if (memErr) throw toDescriptiveError(memErr, 'adding you as the first member');
 
+    let memberWithAvatar = member as Member;
+    if (avatarUri) {
+      const response = await fetch(avatarUri);
+      if (!response.ok) throw new Error(`Could not read the member photo (${response.status}).`);
+      const avatarPath = `members/${member.id}/${Date.now()}.jpg`;
+      const { error: uploadErr } = await supabase.storage
+        .from('car-photos')
+        .upload(avatarPath, await response.arrayBuffer(), {
+          contentType: 'image/jpeg',
+          upsert: true,
+        });
+      if (uploadErr) throw uploadErr;
+      const { data: publicUrl } = supabase.storage
+        .from('car-photos')
+        .getPublicUrl(avatarPath);
+      const { data: updatedMember, error: avatarErr } = await supabase
+        .from('members')
+        .update({ avatar_url: publicUrl.publicUrl })
+        .eq('id', member.id)
+        .select()
+        .single();
+      if (avatarErr) throw avatarErr;
+      memberWithAvatar = updatedMember as Member;
+    }
+
     await AsyncStorage.setItem(STORAGE_KEYS.familyId, family.id);
     await AsyncStorage.setItem(STORAGE_KEYS.memberId, member.id);
-    setState({ loading: false, family: family as Family, currentMember: member as Member, error: null });
-    return { family: family as Family, member: member as Member };
+    setState({ loading: false, family: family as Family, currentMember: memberWithAvatar, error: null });
+    return { family: family as Family, member: memberWithAvatar };
+  }, []);
+
+  const updateFamily = useCallback(async (familyId: string, name: string) => {
+    const { data, error: updateErr } = await supabase
+      .from('families')
+      .update({ name: name.trim() })
+      .eq('id', familyId)
+      .select()
+      .single();
+    if (updateErr) throw updateErr;
+    setState((current) => ({ ...current, family: data as Family }));
+    return data as Family;
+  }, []);
+
+  const resetFamily = useCallback(async () => {
+    await AsyncStorage.multiRemove([STORAGE_KEYS.familyId, STORAGE_KEYS.memberId]);
+    familyResetListeners.forEach((listener) => listener());
   }, []);
 
   const joinFamily = useCallback(async (inviteCode: string, yourDisplayName: string) => {
@@ -144,5 +193,5 @@ export function useFamily() {
     return { family: family as Family, member: member as Member };
   }, []);
 
-  return { ...state, createFamily, joinFamily, refresh: loadPersisted };
+  return { ...state, createFamily, updateFamily, resetFamily, joinFamily, refresh: loadPersisted };
 }

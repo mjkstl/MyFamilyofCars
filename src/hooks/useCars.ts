@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import * as FileSystem from 'expo-file-system';
-import { decode } from 'base64-arraybuffer';
 import { supabase } from '@/lib/supabase';
 import type { Car, CarInsert } from '@/types/database';
 
@@ -28,11 +26,13 @@ export function useCars(memberId: string | undefined) {
 
   /** Uploads a local photo URI to Storage and returns its public URL. */
   const uploadPhoto = useCallback(async (localUri: string, carId: string): Promise<string> => {
-    const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
+    const response = await fetch(localUri);
+    if (!response.ok) throw new Error(`Could not read the selected photo (${response.status}).`);
+    const imageData = await response.arrayBuffer();
     const path = `${carId}/${Date.now()}.jpg`;
     const { error: uploadErr } = await supabase.storage
       .from('car-photos')
-      .upload(path, decode(base64), { contentType: 'image/jpeg', upsert: true });
+      .upload(path, imageData, { contentType: 'image/jpeg', upsert: true });
     if (uploadErr) throw uploadErr;
 
     const { data } = supabase.storage.from('car-photos').getPublicUrl(path);
@@ -92,5 +92,23 @@ export function useCars(memberId: string | undefined) {
     [memberId, refresh, uploadPhoto, runPhotoQualityCheck]
   );
 
-  return { cars, loading, error, refresh, addCar };
+  const updateCar = useCallback(async (carId: string, changes: Partial<Car>) => {
+    const { data, error: updateErr } = await supabase
+      .from('cars')
+      .update(changes)
+      .eq('id', carId)
+      .select()
+      .single();
+    if (updateErr) throw updateErr;
+    await refresh();
+    return data as Car;
+  }, [refresh]);
+
+  const deleteCar = useCallback(async (carId: string) => {
+    const { error: deleteErr } = await supabase.from('cars').delete().eq('id', carId);
+    if (deleteErr) throw deleteErr;
+    await refresh();
+  }, [refresh]);
+
+  return { cars, loading, error, refresh, addCar, updateCar, deleteCar };
 }

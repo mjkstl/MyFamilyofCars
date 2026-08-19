@@ -33,6 +33,7 @@ export interface Car {
   trim: string | null;
   color: string | null;
   nickname: string | null;
+  notes: string | null;
   photo_url: string | null;
   photo_quality_status: PhotoQualityStatus;
   purchase_date: string | null;
@@ -80,6 +81,7 @@ export type CarInsert = Pick<Car, 'member_id' | 'make' | 'model' | 'year'> &
       | 'trim'
       | 'color'
       | 'nickname'
+      | 'notes'
       | 'photo_url'
       | 'photo_quality_status'
       | 'purchase_date'

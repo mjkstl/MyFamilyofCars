@@ -1,16 +1,31 @@
 import React, { useState } from 'react';
-import { View, Text, Image, Pressable, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, Pressable, StyleSheet, Dimensions, TextInput, ActivityIndicator } from 'react-native';
 import type { Car, CarFact } from '@/types/database';
 
 const CARD_WIDTH = Dimensions.get('window').width * 0.82;
 
-export default function CarCard({ car, fact }: { car: Car; fact: CarFact | null }) {
+export default function CarCard({
+  car,
+  fact,
+  onEdit,
+  onDelete,
+  onNotesSave,
+}: {
+  car: Car;
+  fact: CarFact | null;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onNotesSave?: (notes: string) => Promise<void> | void;
+}) {
   const [factExpanded, setFactExpanded] = useState(false);
+  const [notes, setNotes] = useState(car.notes ?? '');
+  const [savedNotes, setSavedNotes] = useState(car.notes ?? '');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   return (
     <View style={styles.card}>
       {car.photo_url ? (
-        <Image source={{ uri: car.photo_url }} style={styles.photo} />
+        <Image source={{ uri: car.photo_url }} style={styles.photo} resizeMode="cover" />
       ) : (
         <View style={[styles.photo, styles.photoFallback]}>
           <Text style={styles.photoFallbackText}>No photo yet</Text>
@@ -45,6 +60,50 @@ export default function CarCard({ car, fact }: { car: Car; fact: CarFact | null 
           <Text style={styles.factHint}>{factExpanded ? 'Tap to collapse' : 'Tap for more'}</Text>
         </Pressable>
       ) : null}
+
+      {onNotesSave ? (
+        <View style={styles.notesSection}>
+          <Text style={styles.notesLabel}>Memory</Text>
+          <TextInput
+            style={styles.notesInput}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Add a memory about this car..."
+            multiline
+            textAlignVertical="top"
+          />
+          <Pressable
+            style={[styles.memorySaveButton, notes === savedNotes && styles.memorySaveDisabled]}
+            disabled={savingNotes || notes === savedNotes}
+            onPress={async () => {
+              setSavingNotes(true);
+              try {
+                await onNotesSave(notes);
+                setSavedNotes(notes);
+              } finally {
+                setSavingNotes(false);
+              }
+            }}
+          >
+            {savingNotes ? <ActivityIndicator color="#fff" /> : <Text style={styles.memorySaveText}>Save memory</Text>}
+          </Pressable>
+        </View>
+      ) : null}
+
+      {onEdit || onDelete ? (
+        <View style={styles.actionRow}>
+          {onEdit ? (
+            <Pressable style={styles.editButton} onPress={onEdit}>
+              <Text style={styles.editButtonText}>Edit</Text>
+            </Pressable>
+          ) : null}
+          {onDelete ? (
+            <Pressable style={styles.deleteButton} onPress={onDelete}>
+              <Text style={styles.deleteButtonText}>Delete</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -76,4 +135,23 @@ const styles = StyleSheet.create({
   factBox: { marginTop: 12, backgroundColor: '#F1F5F9', borderRadius: 10, padding: 10 },
   factText: { fontSize: 13, color: '#334155' },
   factHint: { fontSize: 11, color: '#94A3B8', marginTop: 4 },
+  notesSection: { marginTop: 14 },
+  notesLabel: { fontSize: 13, fontWeight: '700', color: '#334155', marginBottom: 6 },
+  notesInput: {
+    minHeight: 76,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    padding: 10,
+    color: '#0F172A',
+    backgroundColor: '#F8FAFC',
+  },
+  memorySaveButton: { backgroundColor: '#0F766E', borderRadius: 9, padding: 11, alignItems: 'center', marginTop: 8 },
+  memorySaveDisabled: { backgroundColor: '#94A3B8' },
+  memorySaveText: { color: '#fff', fontWeight: '700' },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  editButton: { flex: 1, backgroundColor: '#0F766E', borderRadius: 9, padding: 11, alignItems: 'center' },
+  editButtonText: { color: '#fff', fontWeight: '700' },
+  deleteButton: { flex: 1, backgroundColor: '#FFF1F2', borderRadius: 9, padding: 11, alignItems: 'center' },
+  deleteButtonText: { color: '#BE123C', fontWeight: '700' },
 });

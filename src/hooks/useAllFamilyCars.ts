@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Car } from '@/types/database';
+import type { Car, Member } from '@/types/database';
 
 export interface FamilyCar extends Car {
   member_display_name: string;
@@ -18,19 +18,25 @@ export function useAllFamilyCars(familyId: string | undefined) {
   const refresh = useCallback(async () => {
     if (!familyId) return;
     setLoading(true);
+    const { data: members, error: membersError } = await supabase
+      .from('members')
+      .select('id, display_name')
+      .eq('family_id', familyId);
+    if (membersError || !members?.length) {
+      setCars([]);
+      setLoading(false);
+      return;
+    }
+
+    const memberNames = new Map((members as Pick<Member, 'id' | 'display_name'>[]).map((member) => [member.id, member.display_name]));
     const { data, error } = await supabase
       .from('cars')
-      .select('*, members!inner(display_name, family_id)')
-      .eq('members.family_id', familyId)
+      .select('*')
+      .in('member_id', members.map((member) => member.id))
       .order('created_at', { ascending: true });
 
     if (!error && data) {
-      setCars(
-        data.map((row: any) => ({
-          ...row,
-          member_display_name: row.members?.display_name ?? 'Family',
-        }))
-      );
+      setCars(data.map((car) => ({ ...(car as Car), member_display_name: memberNames.get(car.member_id) ?? 'Family' })));
     }
     setLoading(false);
   }, [familyId]);

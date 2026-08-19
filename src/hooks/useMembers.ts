@@ -37,6 +37,7 @@ export function useMembers(familyId: string | undefined) {
       relationshipLabel: string;
       referenceName?: string;
       enteredByMemberId: string | null;
+      avatarUri?: string | null;
     }) => {
       if (!familyId) throw new Error('No family loaded.');
 
@@ -63,6 +64,18 @@ export function useMembers(familyId: string | undefined) {
         .single();
 
       if (err) throw err;
+      if (params.avatarUri) {
+        const response = await fetch(params.avatarUri);
+        if (!response.ok) throw new Error(`Could not read the member photo (${response.status}).`);
+        const path = `members/${data.id}/${Date.now()}.jpg`;
+        const { error: uploadErr } = await supabase.storage
+          .from('car-photos')
+          .upload(path, await response.arrayBuffer(), { contentType: 'image/jpeg', upsert: true });
+        if (uploadErr) throw uploadErr;
+        const avatarUrl = supabase.storage.from('car-photos').getPublicUrl(path).data.publicUrl;
+        const { error: avatarErr } = await supabase.from('members').update({ avatar_url: avatarUrl }).eq('id', data.id);
+        if (avatarErr) throw avatarErr;
+      }
       await refresh();
       return { member: data as Member, inference };
     },
@@ -85,5 +98,26 @@ export function useMembers(familyId: string | undefined) {
     [refresh]
   );
 
-  return { members, loading, error, refresh, addMemberWithInference, confirmParentLink };
+  const updateMember = useCallback(async (memberId: string, displayName: string, avatarUri?: string | null) => {
+    let avatarUrl: string | null | undefined;
+    if (avatarUri && !avatarUri.startsWith('http')) {
+      const response = await fetch(avatarUri);
+      if (!response.ok) throw new Error(`Could not read the member photo (${response.status}).`);
+      const path = `members/${memberId}/${Date.now()}.jpg`;
+      const { error: uploadErr } = await supabase.storage
+        .from('car-photos')
+        .upload(path, await response.arrayBuffer(), { contentType: 'image/jpeg', upsert: true });
+      if (uploadErr) throw uploadErr;
+      avatarUrl = supabase.storage.from('car-photos').getPublicUrl(path).data.publicUrl;
+    }
+
+    const { error: updateErr } = await supabase
+      .from('members')
+      .update({ display_name: displayName.trim(), ...(avatarUrl ? { avatar_url: avatarUrl } : {}) })
+      .eq('id', memberId);
+    if (updateErr) throw updateErr;
+    await refresh();
+  }, [refresh]);
+
+  return { members, loading, error, refresh, addMemberWithInference, confirmParentLink, updateMember };
 }

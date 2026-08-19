@@ -95,6 +95,15 @@ export default function FamilyScreen() {
           <Text style={styles.inviteButtonText}>Invite a family member</Text>
         </Pressable>
 
+        {family?.invite_code && (
+          <View style={styles.codeRow}>
+            <Text style={styles.codeLabel}>Invite code</Text>
+            <Text style={styles.codeValue} selectable>
+              {family.invite_code}
+            </Text>
+          </View>
+        )}
+
         <FlatList
           data={members}
           keyExtractor={(m) => m.id}
@@ -190,6 +199,15 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   inviteButtonText: { color: '#1D4ED8', fontWeight: '600' },
+  codeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
+  codeLabel: { fontSize: 12, color: '#999' },
+  codeValue: { fontSize: 16, fontWeight: '700', letterSpacing: 1, color: '#111' },
   memberRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   memberName: { fontSize: 16, fontWeight: '600' },
   memberRelationship: { fontSize: 13, color: '#888' },

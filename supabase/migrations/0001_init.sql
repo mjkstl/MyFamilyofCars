@@ -38,6 +38,7 @@ create table if not exists public.cars (
   trim text,
   color text,
   nickname text,
+  notes text,
   photo_url text,
   photo_quality_status text not null default 'pending'
     check (photo_quality_status in ('pending', 'approved', 'flagged')),
@@ -46,6 +47,8 @@ create table if not exists public.cars (
   order_index integer not null default 0,
   created_at timestamptz not null default now()
 );
+
+alter table public.cars add column if not exists notes text;
 
 create table if not exists public.car_facts (
   id uuid primary key default gen_random_uuid(),
@@ -99,6 +102,11 @@ create policy "families are visible to their creator or members"
     created_by = auth.uid()
     or public.is_family_member(id)
   );
+
+create policy "families can be renamed by their creator or members"
+  on public.families for update
+  using (created_by = auth.uid() or public.is_family_member(id))
+  with check (created_by = auth.uid() or public.is_family_member(id));
 
 create policy "families can be found by invite code"
   on public.families for select

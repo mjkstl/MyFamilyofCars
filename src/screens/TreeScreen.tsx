@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, FlatList, StyleSheet, Text, ActivityIndicator, SafeAreaView, Pressable, Alert } from 'react-native';
+import { View, FlatList, StyleSheet, Text, ActivityIndicator, SafeAreaView, Pressable, Alert, Modal, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { captureRef } from 'react-native-view-shot';
@@ -11,16 +11,23 @@ import { useAllFamilyCars } from '@/hooks/useAllFamilyCars';
 import MemberTile from '@/components/MemberTile';
 import FamilyPoster from '@/components/FamilyPoster';
 import type { TreeStackParamList } from '@/navigation/RootNavigator';
+import AppLogoHeader from '@/components/AppLogoHeader';
+import MemberEditModal from '@/components/MemberEditModal';
+import type { Member } from '@/types/database';
 
 type Nav = NativeStackNavigationProp<TreeStackParamList, 'TreeHome'>;
 
 export default function TreeScreen() {
   const navigation = useNavigation<Nav>();
-  const { family } = useFamily();
-  const { members, loading } = useMembers(family?.id);
+  const { family, updateFamily } = useFamily();
+  const { members, loading, updateMember } = useMembers(family?.id);
   const { cars: allCars } = useAllFamilyCars(family?.id);
   const posterRef = useRef<View>(null);
   const [sharing, setSharing] = useState(false);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [editingFamily, setEditingFamily] = useState(false);
+  const [familyName, setFamilyName] = useState(family?.name ?? '');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const handleSharePoster = async () => {
     if (!posterRef.current || allCars.length === 0) {
@@ -53,6 +60,7 @@ export default function TreeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <AppLogoHeader />
       <FlatList
         data={members}
         keyExtractor={(m) => m.id}
@@ -61,7 +69,12 @@ export default function TreeScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <>
-            <Text style={styles.familyName}>{family?.name}</Text>
+            <View style={styles.familyTitleRow}>
+              <Text style={styles.familyName}>{family?.name}</Text>
+              <Pressable accessibilityLabel="Edit family name" onPress={() => { setFamilyName(family?.name ?? ''); setEditingFamily(true); }}>
+                <Text style={styles.familyEdit}>✎</Text>
+              </Pressable>
+            </View>
             <Pressable style={styles.shareButton} onPress={handleSharePoster} disabled={sharing}>
               {sharing ? (
                 <ActivityIndicator color="#fff" />
@@ -72,7 +85,12 @@ export default function TreeScreen() {
           </>
         }
         renderItem={({ item }) => (
-          <MemberTile member={item} onPress={() => navigation.navigate('MemberCarousel', { member: item })} />
+          <MemberTile
+            member={item}
+            cars={allCars.filter((car) => car.member_id === item.id)}
+            onPress={() => navigation.navigate('MemberCarousel', { member: item })}
+            onEdit={() => setEditingMember(item)}
+          />
         )}
         ListEmptyComponent={
           <Text style={styles.empty}>No family members yet — add someone from the Family tab.</Text>
@@ -85,6 +103,41 @@ export default function TreeScreen() {
       <View style={styles.offscreen} pointerEvents="none">
         <FamilyPoster ref={posterRef} familyName={family?.name ?? ''} cars={allCars} />
       </View>
+      <MemberEditModal
+        member={editingMember}
+        saving={savingEdit}
+        onClose={() => setEditingMember(null)}
+        onSave={async (displayName, avatarUri) => {
+          if (!editingMember) return;
+          setSavingEdit(true);
+          try {
+            await updateMember(editingMember.id, displayName, avatarUri);
+            setEditingMember(null);
+          } finally {
+            setSavingEdit(false);
+          }
+        }}
+      />
+      <Modal visible={editingFamily} transparent animationType="slide" onRequestClose={() => setEditingFamily(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit family name</Text>
+            <TextInput style={styles.familyInput} value={familyName} onChangeText={setFamilyName} autoFocus />
+            <Pressable
+              style={styles.modalSave}
+              onPress={async () => {
+                if (!family?.id || !familyName.trim()) return;
+                setSavingEdit(true);
+                try { await updateFamily(family.id, familyName); setEditingFamily(false); } finally { setSavingEdit(false); }
+              }}
+              disabled={savingEdit}
+            >
+              {savingEdit ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSaveText}>Save name</Text>}
+            </Pressable>
+            <Pressable onPress={() => setEditingFamily(false)}><Text style={styles.cancelLink}>Cancel</Text></Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -95,8 +148,17 @@ const styles = StyleSheet.create({
   list: { padding: 16 },
   row: { justifyContent: 'space-between' },
   familyName: { fontSize: 22, fontWeight: '700', marginBottom: 12 },
-  shareButton: { backgroundColor: '#0F172A', borderRadius: 10, padding: 14, alignItems: 'center', marginBottom: 20 },
+  familyTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  familyEdit: { color: '#F97316', fontSize: 22, fontWeight: '800', marginBottom: 10 },
+  shareButton: { backgroundColor: '#0F172A', borderRadius: 10, paddingVertical: 7, paddingHorizontal: 10, alignItems: 'center', marginBottom: 12 },
   shareButtonText: { color: '#fff', fontWeight: '600' },
   empty: { textAlign: 'center', color: '#888', marginTop: 40 },
   offscreen: { position: 'absolute', top: -9999, left: -9999 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.45)', justifyContent: 'flex-end' },
+  modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginBottom: 14 },
+  familyInput: { borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 10, padding: 13, fontSize: 16 },
+  modalSave: { backgroundColor: '#0F766E', borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 14 },
+  modalSaveText: { color: '#fff', fontWeight: '700' },
+  cancelLink: { color: '#64748B', textAlign: 'center', marginTop: 14 },
 });
