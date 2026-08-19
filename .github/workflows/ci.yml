@@ -29,7 +29,16 @@ jobs:
       - name: Export Expo web build
         env:
           CI: true
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
         run: npx expo export --platform web
+
+      - name: Upload Expo web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: expo-web-dist
+          path: dist
+          if-no-files-found: error
 
   deploy:
     name: Deploy to Vercel
@@ -47,14 +56,20 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel
 
+      - name: Download Expo web build
+        uses: actions/download-artifact@v4
+        with:
+          name: expo-web-dist
+          path: dist
+
       - name: Deploy static export to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
-          SCOPE_FLAG=""
+          VERCEL_ARGS=(--prod --token "$VERCEL_TOKEN" --project "$VERCEL_PROJECT_ID" --yes ./dist)
           if [ -n "$VERCEL_ORG_ID" ]; then
-            SCOPE_FLAG="--scope \"$VERCEL_ORG_ID\""
+            VERCEL_ARGS+=(--scope "$VERCEL_ORG_ID")
           fi
-          npx vercel --prod --token "$VERCEL_TOKEN" --project "$VERCEL_PROJECT_ID" $SCOPE_FLAG --yes ./dist
+          npx vercel "${VERCEL_ARGS[@]}"
