@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ActivityIndicator, SafeAreaView } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, SafeAreaView } from 'react-native';
 import { useFamily } from '@/hooks/useFamily';
 
 type Mode = 'choose' | 'create' | 'join';
@@ -11,10 +11,15 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
   const [familyName, setFamilyName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Alert.alert() is a silent no-op on React Native Web — on web it renders
+  // nothing at all, so a caught error would fail invisibly. Track errors in
+  // state and render them on screen instead, on every platform.
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleCreate = async () => {
+    setFormError(null);
     if (!familyName.trim() || !name.trim()) {
-      Alert.alert('Almost there', 'Enter both a family name and your name.');
+      setFormError('Enter both a family name and your name.');
       return;
     }
     setSubmitting(true);
@@ -22,15 +27,16 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
       await createFamily(familyName.trim(), name.trim());
       onComplete();
     } catch (err) {
-      Alert.alert('Something went wrong', err instanceof Error ? err.message : String(err));
+      setFormError(err instanceof Error ? err.message : String(err));
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleJoin = async () => {
+    setFormError(null);
     if (!inviteCode.trim() || !name.trim()) {
-      Alert.alert('Almost there', 'Enter the invite code and your name.');
+      setFormError('Enter the invite code and your name.');
       return;
     }
     setSubmitting(true);
@@ -38,10 +44,15 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
       await joinFamily(inviteCode.trim(), name.trim());
       onComplete();
     } catch (err) {
-      Alert.alert('Couldn\u2019t join', err instanceof Error ? err.message : String(err));
+      setFormError(err instanceof Error ? err.message : String(err));
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const goToMode = (next: Mode) => {
+    setFormError(null);
+    setMode(next);
   };
 
   if (mode === 'choose') {
@@ -49,10 +60,10 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
       <SafeAreaView style={styles.container}>
         <Text style={styles.title}>My Family of Cars</Text>
         <Text style={styles.subtitle}>Every car your family has ever owned, in one place.</Text>
-        <Pressable style={styles.primaryButton} onPress={() => setMode('create')}>
+        <Pressable style={styles.primaryButton} onPress={() => goToMode('create')}>
           <Text style={styles.primaryButtonText}>Start a new family</Text>
         </Pressable>
-        <Pressable style={styles.secondaryButton} onPress={() => setMode('join')}>
+        <Pressable style={styles.secondaryButton} onPress={() => goToMode('join')}>
           <Text style={styles.secondaryButtonText}>Join with an invite code</Text>
         </Pressable>
       </SafeAreaView>
@@ -70,10 +81,15 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
           onChangeText={setFamilyName}
         />
         <TextInput style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
+        {formError ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{formError}</Text>
+          </View>
+        ) : null}
         <Pressable style={styles.primaryButton} onPress={handleCreate} disabled={submitting}>
           {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Create</Text>}
         </Pressable>
-        <Pressable onPress={() => setMode('choose')}>
+        <Pressable onPress={() => goToMode('choose')}>
           <Text style={styles.backLink}>Back</Text>
         </Pressable>
       </SafeAreaView>
@@ -91,10 +107,15 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
         onChangeText={setInviteCode}
       />
       <TextInput style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
+      {formError ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{formError}</Text>
+        </View>
+      ) : null}
       <Pressable style={styles.primaryButton} onPress={handleJoin} disabled={submitting}>
         {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Join</Text>}
       </Pressable>
-      <Pressable onPress={() => setMode('choose')}>
+      <Pressable onPress={() => goToMode('choose')}>
         <Text style={styles.backLink}>Back</Text>
       </Pressable>
     </SafeAreaView>
@@ -123,4 +144,12 @@ const styles = StyleSheet.create({
   secondaryButton: { padding: 14, alignItems: 'center' },
   secondaryButtonText: { color: '#1D4ED8', fontSize: 15, fontWeight: '500' },
   backLink: { textAlign: 'center', color: '#888', marginTop: 12 },
+  errorBanner: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 10,
+    padding: 12,
+  },
+  errorText: { color: '#B91C1C', fontSize: 14, lineHeight: 20 },
 });

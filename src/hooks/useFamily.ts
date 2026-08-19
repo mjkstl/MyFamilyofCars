@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { ensureAnonymousSession, supabase } from '@/lib/supabase';
 import type { Family, Member } from '@/types/database';
 
@@ -7,6 +8,21 @@ const STORAGE_KEYS = {
   familyId: 'familyofcars.familyId',
   memberId: 'familyofcars.memberId',
 } as const;
+
+/**
+ * Wraps a Supabase/PostgREST error with the real code and details visible,
+ * e.g. "adding you as the first member failed (42501): new row violates
+ * row-level security policy for table "members"". A generic
+ * "something went wrong" message is what turned a config problem into an
+ * hours-long DevTools investigation last time — this makes the actual
+ * cause visible on screen the moment it happens, every time.
+ */
+function toDescriptiveError(pgErr: PostgrestError, action: string): Error {
+  const codePart = pgErr.code ? ` (${pgErr.code})` : '';
+  const hintPart = pgErr.hint ? ` Hint: ${pgErr.hint}` : '';
+  const detailsPart = pgErr.details ? ` Details: ${pgErr.details}` : '';
+  return new Error(`${action} failed${codePart}: ${pgErr.message}.${hintPart}${detailsPart}`);
+}
 
 interface FamilyState {
   loading: boolean;
@@ -68,7 +84,16 @@ export function useFamily() {
       .insert({ name: familyName, created_by: session.user.id })
       .select()
       .single();
-    if (famErr) throw famErr;
+    if (famErr) throw toDescriptiveError(famErr, 'creating the family');
+
+    // Re-confirm the session immediately before this insert rather than
+    // reusing the `session` captured above. If a background token refresh
+    // (or a second ensureAnonymousSession caller) swapped the active
+    // session in between these two awaited calls, this guarantees the
+    // user_id we send here matches the auth.uid() the request will
+    // actually carry, instead of a possibly-stale value.
+    const freshSession = await ensureAnonymousSession();
+    if (!freshSession) throw new Error('No auth session.');
 
     const { data: member, error: memErr } = await supabase
       .from('members')
@@ -76,11 +101,11 @@ export function useFamily() {
         family_id: family.id,
         display_name: yourDisplayName,
         relationship: 'Me',
-        user_id: session.user.id,
+        user_id: freshSession.user.id,
       })
       .select()
       .single();
-    if (memErr) throw memErr;
+    if (memErr) throw toDescriptiveError(memErr, 'adding you as the first member');
 
     await AsyncStorage.setItem(STORAGE_KEYS.familyId, family.id);
     await AsyncStorage.setItem(STORAGE_KEYS.memberId, member.id);
@@ -99,16 +124,19 @@ export function useFamily() {
       .single();
     if (famErr || !family) throw new Error('Invite code not found — double-check it and try again.');
 
+    const freshSession = await ensureAnonymousSession();
+    if (!freshSession) throw new Error('No auth session.');
+
     const { data: member, error: memErr } = await supabase
       .from('members')
       .insert({
         family_id: family.id,
         display_name: yourDisplayName,
-        user_id: session.user.id,
+        user_id: freshSession.user.id,
       })
       .select()
       .single();
-    if (memErr) throw memErr;
+    if (memErr) throw toDescriptiveError(memErr, 'adding you to the family');
 
     await AsyncStorage.setItem(STORAGE_KEYS.familyId, family.id);
     await AsyncStorage.setItem(STORAGE_KEYS.memberId, member.id);

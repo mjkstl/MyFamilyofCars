@@ -1,43 +1,40 @@
--- =========================================================================
--- My Family of Cars — Phase 1 schema
--- Run this in the Supabase SQL Editor (or `supabase db push`) on a fresh
--- project. Requires "Anonymous sign-ins" enabled under
--- Authentication -> Providers (Phase 1 has no login wall).
--- =========================================================================
+create extension if not exists pgcrypto;
 
-create extension if not exists "uuid-ossp";
+create or replace function public.generate_invite_code()
+returns text
+language sql
+volatile
+as $$
+  select lower(substr(encode(gen_random_bytes(6), 'hex'), 1, 8));
+$$;
 
--- -------------------------------------------------------------------------
--- Tables
--- -------------------------------------------------------------------------
-
-create table families (
-  id uuid primary key default uuid_generate_v4(),
-  name text not null,
-  created_by uuid not null references auth.users(id) on delete cascade,
-  invite_code text not null unique default substr(md5(random()::text), 1, 8),
+create table if not exists public.families (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (length(trim(name)) > 0),
+  created_by uuid not null references auth.users(id) on delete restrict,
+  invite_code text not null unique default public.generate_invite_code(),
   created_at timestamptz not null default now()
 );
 
-create table members (
-  id uuid primary key default uuid_generate_v4(),
-  family_id uuid not null references families(id) on delete cascade,
-  display_name text not null,
-  relationship text, -- free text label, e.g. "Dad", "Grandma", "Me"
+create table if not exists public.members (
+  id uuid primary key default gen_random_uuid(),
+  family_id uuid not null references public.families(id) on delete cascade,
+  display_name text not null check (length(trim(display_name)) > 0),
+  relationship text,
   avatar_url text,
-  user_id uuid references auth.users(id) on delete set null, -- null until that person joins via invite
-  parent_member_id uuid references members(id) on delete set null,
+  user_id uuid references auth.users(id) on delete set null,
+  parent_member_id uuid references public.members(id) on delete set null,
   parent_link_confidence text check (parent_link_confidence in ('high', 'low', 'manual')),
   parent_link_confirmed boolean not null default false,
   created_at timestamptz not null default now()
 );
 
-create table cars (
-  id uuid primary key default uuid_generate_v4(),
-  member_id uuid not null references members(id) on delete cascade,
-  make text not null,
-  model text not null,
-  year integer not null check (year between 1885 and 2100),
+create table if not exists public.cars (
+  id uuid primary key default gen_random_uuid(),
+  member_id uuid not null references public.members(id) on delete cascade,
+  make text not null check (length(trim(make)) > 0),
+  model text not null check (length(trim(model)) > 0),
+  year integer not null check (year between 1886 and 2100),
   trim text,
   color text,
   nickname text,
@@ -50,8 +47,8 @@ create table cars (
   created_at timestamptz not null default now()
 );
 
-create table car_facts (
-  id uuid primary key default uuid_generate_v4(),
+create table if not exists public.car_facts (
+  id uuid primary key default gen_random_uuid(),
   make text not null,
   model text not null,
   year integer not null,
@@ -60,21 +57,26 @@ create table car_facts (
   source_confidence text check (source_confidence in ('high', 'medium', 'low')),
   created_at timestamptz not null default now()
 );
-create index car_facts_lookup on car_facts (make, model, year);
 
-create table family_shares (
-  id uuid primary key default uuid_generate_v4(),
-  family_id uuid not null references families(id) on delete cascade,
+create table if not exists public.family_shares (
+  id uuid primary key default gen_random_uuid(),
+  family_id uuid not null references public.families(id) on delete cascade,
   share_type text not null check (share_type in ('invite', 'poster')),
   created_at timestamptz not null default now()
 );
 
--- -------------------------------------------------------------------------
--- Helper functions (security definer so RLS policies can call them
--- without recursive-policy issues)
--- -------------------------------------------------------------------------
+create index if not exists members_family_id_idx on public.members(family_id);
+create index if not exists members_user_id_idx on public.members(user_id);
+create index if not exists cars_member_id_idx on public.cars(member_id);
+create index if not exists car_facts_lookup_idx on public.car_facts(make, model, year);
 
-create or replace function is_family_member(fid uuid)
+alter table public.families enable row level security;
+alter table public.members enable row level security;
+alter table public.cars enable row level security;
+alter table public.car_facts enable row level security;
+alter table public.family_shares enable row level security;
+
+create or replace function public.is_family_member(fid uuid)
 returns boolean
 language sql
 security definer
@@ -82,113 +84,73 @@ set search_path = public
 stable
 as $$
   select exists (
-    select 1 from members
+    select 1 from public.members
     where family_id = fid and user_id = auth.uid()
   );
 $$;
 
-create or replace function is_family_member_via_car(cid uuid)
-returns boolean
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select exists (
-    select 1 from cars c
-    join members m on m.id = c.member_id
-    where c.id = cid and m.user_id = auth.uid()
-  );
-$$;
+create policy "families can be created by the signed-in user"
+  on public.families for insert
+  with check (created_by = auth.uid());
 
-create or replace function is_family_member_via_member_row(mid uuid)
-returns boolean
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select exists (
-    select 1 from members target
-    join members me on me.family_id = target.family_id
-    where target.id = mid and me.user_id = auth.uid()
-  );
-$$;
-
--- -------------------------------------------------------------------------
--- Row Level Security
--- -------------------------------------------------------------------------
-
-alter table families enable row level security;
-alter table members enable row level security;
-alter table cars enable row level security;
-alter table car_facts enable row level security;
-alter table family_shares enable row level security;
-
--- families: anyone authenticated (incl. anonymous) can look up a family by
--- invite code to join it, and can create a new family. Only members can
--- update it.
-create policy "families_select_any_authenticated" on families
-  for select using (auth.uid() is not null);
-
-create policy "families_insert_own" on families
-  for insert with check (created_by = auth.uid());
-
-create policy "families_update_members_only" on families
-  for update using (is_family_member(id));
-
--- members: readable/insertable/updatable only within your own family, EXCEPT
--- the very first insert (joining a family you just discovered via invite
--- code) which is allowed for any authenticated user inserting themself.
-create policy "members_select_family_only" on members
-  for select using (is_family_member(family_id));
-
-create policy "members_insert_self_or_family" on members
-  for insert with check (
-    user_id = auth.uid() or is_family_member(family_id)
+create policy "families are visible to their creator or members"
+  on public.families for select
+  using (
+    created_by = auth.uid()
+    or public.is_family_member(id)
   );
 
-create policy "members_update_family_only" on members
-  for update using (is_family_member(family_id));
+create policy "families can be found by invite code"
+  on public.families for select
+  using (invite_code is not null);
 
--- cars: scoped through the owning member's family
-create policy "cars_select_family_only" on cars
-  for select using (is_family_member_via_member_row(member_id));
+create policy "members can be added by family members or creators"
+  on public.members for insert
+  with check (
+    exists (
+      select 1 from public.families
+      where families.id = members.family_id
+        and families.created_by = auth.uid()
+    )
+    or public.is_family_member(family_id)
+  );
 
-create policy "cars_insert_family_only" on cars
-  for insert with check (is_family_member_via_member_row(member_id));
+create policy "members are visible to family members"
+  on public.members for select
+  using (user_id = auth.uid() or public.is_family_member(family_id));
 
-create policy "cars_update_family_only" on cars
-  for update using (is_family_member_via_member_row(member_id));
+create policy "members can be updated by family members"
+  on public.members for update
+  using (user_id = auth.uid() or public.is_family_member(family_id));
 
-create policy "cars_delete_family_only" on cars
-  for delete using (is_family_member_via_member_row(member_id));
+create policy "cars are managed by family members"
+  on public.cars for all
+  using (exists (
+    select 1 from public.members
+    where members.id = cars.member_id
+  ) and public.is_family_member((select family_id from public.members where id = cars.member_id)))
+  with check (exists (
+    select 1 from public.members
+    where members.id = cars.member_id
+  ) and public.is_family_member((select family_id from public.members where id = cars.member_id)));
 
--- car_facts: global read-only reference data, writable only by the service
--- role (Edge Functions), never directly by clients.
-create policy "car_facts_select_all" on car_facts
-  for select using (true);
+create policy "car facts are readable"
+  on public.car_facts for select
+  using (true);
 
--- family_shares: scoped to family membership
-create policy "family_shares_select_family_only" on family_shares
-  for select using (is_family_member(family_id));
-
-create policy "family_shares_insert_family_only" on family_shares
-  for insert with check (is_family_member(family_id));
-
--- -------------------------------------------------------------------------
--- Storage: car photo bucket
--- -------------------------------------------------------------------------
+create policy "family shares are managed by family members"
+  on public.family_shares for all
+  using (public.is_family_member(family_id))
+  with check (public.is_family_member(family_id));
 
 insert into storage.buckets (id, name, public)
 values ('car-photos', 'car-photos', true)
 on conflict (id) do nothing;
 
-create policy "car_photos_public_read" on storage.objects
-  for select using (bucket_id = 'car-photos');
+create policy "family members can upload car photos"
+  on storage.objects for insert
+  with check (bucket_id = 'car-photos' and auth.role() = 'authenticated');
 
-create policy "car_photos_authenticated_upload" on storage.objects
-  for insert with check (bucket_id = 'car-photos' and auth.uid() is not null);
-
-create policy "car_photos_authenticated_update" on storage.objects
-  for update using (bucket_id = 'car-photos' and auth.uid() is not null);
+create policy "car photos are publicly readable"
+  on storage.objects for select
+  using (bucket_id = 'car-photos');
