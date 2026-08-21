@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, Image, Pressable, StyleSheet, Dimensions, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, Image, Pressable, StyleSheet, Dimensions } from 'react-native';
 import type { Car, CarFact } from '@/types/database';
+import { getColorHex } from '@/utils/carColors';
 
 const CARD_WIDTH = Dimensions.get('window').width * 0.82;
 
@@ -9,28 +10,35 @@ export default function CarCard({
   fact,
   onEdit,
   onDelete,
-  onNotesSave,
 }: {
   car: Car;
   fact: CarFact | null;
   onEdit?: () => void;
   onDelete?: () => void;
-  onNotesSave?: (notes: string) => Promise<void> | void;
 }) {
   const [factExpanded, setFactExpanded] = useState(false);
-  const [notes, setNotes] = useState(car.notes ?? '');
-  const [savedNotes, setSavedNotes] = useState(car.notes ?? '');
-  const [savingNotes, setSavingNotes] = useState(false);
 
   return (
     <View style={styles.card}>
-      {car.photo_url ? (
-        <Image source={{ uri: car.photo_url }} style={styles.photo} resizeMode="cover" />
-      ) : (
-        <View style={[styles.photo, styles.photoFallback]}>
-          <Text style={styles.photoFallbackText}>No photo yet</Text>
+      <View style={styles.photoWrap}>
+        {/* Placeholder anchor for Phase 2 fun facts (mpg, popular color, cool
+            features, etc). Not wired to real data yet — this just reserves
+            the visual spot so Phase 2 can drop content in without a
+            layout change. Shows a live teaser if a fact already exists. */}
+        <View style={styles.factBubble}>
+          <Text style={styles.factBubbleText} numberOfLines={1}>
+            {fact ? fact.fact_text : 'Fun facts coming soon'}
+          </Text>
+          <View style={styles.factBubbleTail} />
         </View>
-      )}
+        {car.photo_url ? (
+          <Image source={{ uri: car.photo_url }} style={styles.photo} />
+        ) : (
+          <View style={[styles.photo, styles.photoFallback]}>
+            <Text style={styles.photoFallbackText}>No photo yet</Text>
+          </View>
+        )}
+      </View>
 
       {car.photo_quality_status === 'flagged' && (
         <View style={styles.flagBanner}>
@@ -46,7 +54,7 @@ export default function CarCard({
       <View style={styles.metaRow}>
         {car.color ? (
           <View style={styles.colorRow}>
-            <View style={[styles.swatch, { backgroundColor: car.color }]} />
+            <View style={[styles.swatch, { backgroundColor: getColorHex(car.color) }]} />
             <Text style={styles.metaText}>{car.color}</Text>
           </View>
         ) : null}
@@ -61,49 +69,28 @@ export default function CarCard({
         </Pressable>
       ) : null}
 
-      {onNotesSave ? (
-        <View style={styles.notesSection}>
-          <Text style={styles.notesLabel}>Memory</Text>
-          <TextInput
-            style={styles.notesInput}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Add a memory about this car..."
-            multiline
-            textAlignVertical="top"
-          />
-          <Pressable
-            style={[styles.memorySaveButton, notes === savedNotes && styles.memorySaveDisabled]}
-            disabled={savingNotes || notes === savedNotes}
-            onPress={async () => {
-              setSavingNotes(true);
-              try {
-                await onNotesSave(notes);
-                setSavedNotes(notes);
-              } finally {
-                setSavingNotes(false);
-              }
-            }}
-          >
-            {savingNotes ? <ActivityIndicator color="#fff" /> : <Text style={styles.memorySaveText}>Save memory</Text>}
-          </Pressable>
+      {car.memories ? (
+        <View style={styles.memoriesBox}>
+          <Text style={styles.memoriesLabel}>Memories</Text>
+          <Text style={styles.memoriesText}>{car.memories}</Text>
         </View>
       ) : null}
 
-      {onEdit || onDelete ? (
-        <View style={styles.actionRow}>
-          {onEdit ? (
-            <Pressable style={styles.editButton} onPress={onEdit}>
-              <Text style={styles.editButtonText}>Edit</Text>
+      {(onEdit || onDelete) && (
+        <View style={styles.actionsRow}>
+          {onEdit && (
+            <Pressable onPress={onEdit} hitSlop={8}>
+              <Text style={styles.actionEdit}>Edit</Text>
             </Pressable>
-          ) : null}
-          {onDelete ? (
-            <Pressable style={styles.deleteButton} onPress={onDelete}>
-              <Text style={styles.deleteButtonText}>Delete</Text>
+          )}
+          {onEdit && onDelete && <Text style={styles.actionsDivider}>{'\u00b7'}</Text>}
+          {onDelete && (
+            <Pressable onPress={onDelete} hitSlop={8}>
+              <Text style={styles.actionDelete}>Delete</Text>
             </Pressable>
-          ) : null}
+          )}
         </View>
-      ) : null}
+      )}
     </View>
   );
 }
@@ -121,6 +108,38 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
+  photoWrap: { position: 'relative' },
+  factBubble: {
+    position: 'absolute',
+    top: -10,
+    left: 10,
+    zIndex: 2,
+    maxWidth: '75%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 3,
+  },
+  factBubbleText: { fontSize: 11, color: '#6B7280', fontStyle: 'italic' },
+  factBubbleTail: {
+    position: 'absolute',
+    bottom: -6,
+    left: 14,
+    width: 10,
+    height: 10,
+    backgroundColor: '#fff',
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#E5E7EB',
+    transform: [{ rotate: '45deg' }],
+  },
   photo: { width: '100%', height: 180, borderRadius: 12, marginBottom: 10, backgroundColor: '#eee' },
   photoFallback: { alignItems: 'center', justifyContent: 'center' },
   photoFallbackText: { color: '#999' },
@@ -135,23 +154,11 @@ const styles = StyleSheet.create({
   factBox: { marginTop: 12, backgroundColor: '#F1F5F9', borderRadius: 10, padding: 10 },
   factText: { fontSize: 13, color: '#334155' },
   factHint: { fontSize: 11, color: '#94A3B8', marginTop: 4 },
-  notesSection: { marginTop: 14 },
-  notesLabel: { fontSize: 13, fontWeight: '700', color: '#334155', marginBottom: 6 },
-  notesInput: {
-    minHeight: 76,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 10,
-    padding: 10,
-    color: '#0F172A',
-    backgroundColor: '#F8FAFC',
-  },
-  memorySaveButton: { backgroundColor: '#0F766E', borderRadius: 9, padding: 11, alignItems: 'center', marginTop: 8 },
-  memorySaveDisabled: { backgroundColor: '#94A3B8' },
-  memorySaveText: { color: '#fff', fontWeight: '700' },
-  actionRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  editButton: { flex: 1, backgroundColor: '#0F766E', borderRadius: 9, padding: 11, alignItems: 'center' },
-  editButtonText: { color: '#fff', fontWeight: '700' },
-  deleteButton: { flex: 1, backgroundColor: '#FFF1F2', borderRadius: 9, padding: 11, alignItems: 'center' },
-  deleteButtonText: { color: '#BE123C', fontWeight: '700' },
+  memoriesBox: { marginTop: 10, backgroundColor: '#FFFBEB', borderRadius: 10, padding: 10 },
+  memoriesLabel: { fontSize: 11, fontWeight: '700', color: '#B45309', marginBottom: 3, textTransform: 'uppercase' },
+  memoriesText: { fontSize: 13, color: '#78350F', lineHeight: 18 },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12 },
+  actionEdit: { color: '#1D4ED8', fontSize: 13, fontWeight: '600' },
+  actionDelete: { color: '#DC2626', fontSize: 13, fontWeight: '600' },
+  actionsDivider: { color: '#ccc' },
 });

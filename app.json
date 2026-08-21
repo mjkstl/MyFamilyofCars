@@ -33,7 +33,8 @@
           "cameraPermission": "Take a photo of your car to add it to your family's car tree."
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-font"
     ]
   }
 }

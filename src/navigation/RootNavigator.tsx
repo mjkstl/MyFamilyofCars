@@ -11,14 +11,15 @@ import TreeScreen from '@/screens/TreeScreen';
 import MemberCarouselScreen from '@/screens/MemberCarouselScreen';
 import AddCarScreen from '@/screens/AddCarScreen';
 import FamilyScreen from '@/screens/FamilyScreen';
-import type { Member } from '@/types/database';
+import type { Car, Member } from '@/types/database';
 
 export type TreeStackParamList = {
   TreeHome: undefined;
   MemberCarousel: { member: Member };
-  // Reached via the "+" button on a member's carousel — preselects that
-  // member so a car can be added to anyone's collection, not just your own.
-  AddCarForMember: { member: Member };
+  // Reached via the "+" (add) or edit link (edit) on a member's carousel.
+  // When `car` is present, AddCarScreen renders in edit mode for that
+  // existing car instead of creating a new one.
+  AddCarForMember: { member: Member; car?: Car };
 };
 
 const Tab = createBottomTabNavigator();
@@ -36,7 +37,11 @@ function TreeStackNavigator() {
       <TreeStack.Screen
         name="AddCarForMember"
         component={AddCarScreen}
-        options={({ route }) => ({ title: `Add a car for ${route.params.member.display_name}` })}
+        options={({ route }) => ({
+          title: route.params.car
+            ? `Edit ${route.params.car.year} ${route.params.car.make} ${route.params.car.model}`
+            : `Add a car for ${route.params.member.display_name}`,
+        })}
       />
     </TreeStack.Navigator>
   );
