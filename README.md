@@ -12,7 +12,7 @@ who has Node installed but hasn't used Expo or Supabase before.
 - Add cars with make/model autocomplete (NHTSA), color, photo, nickname
 - Photo quality check on upload (flags likely non-vehicle images)
 - Flat family grid → tap a member → swipeable carousel of their cars
-- Tap a car's fun fact to expand it (seeded trivia, ~50-model target)
+-
 - Relationship-inference when adding family members (name + relationship
   term suggest a generational link, always confirmed by a one tap — never
   auto-committed silently)
@@ -20,7 +20,7 @@ who has Node installed but hasn't used Expo or Supabase before.
   sheet) and share a family poster (captured image via native share sheet)
 
 ## What's intentionally deferred
-
+ Tap a car's fun fact to expand it (seeded trivia, ~50-model target)
 Generational tree *rendering* (zoom, print/export), cartoony trivia
 illustrations, notifications/badges, and monetization are Phase 2/3 per
 the build prompt — the schema already has the hooks for them
