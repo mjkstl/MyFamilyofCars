@@ -16,14 +16,14 @@ export default function AppLogoHeader() {
 
 const styles = StyleSheet.create({
   header: {
-    minHeight: 500,
-    paddingVertical: 18,
+    minHeight: 250,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F8FAFC',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
-  logo: { width: 420, height: 410, maxWidth: '92%' },
-  banner: { maxWidth: 720, paddingHorizontal: 20, color: '#0F172A', fontSize: 18, lineHeight: 25, fontWeight: '700', textAlign: 'center' },
+  logo: { width: 210, height: 205, maxWidth: '92%' },
+  banner: { maxWidth: 720, paddingHorizontal: 20, color: '#0F172A', fontSize: 13, lineHeight: 18, fontWeight: '700', textAlign: 'center' },
 });

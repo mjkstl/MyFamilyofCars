@@ -61,8 +61,8 @@ const styles = StyleSheet.create({
   editBadgeText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   name: { fontSize: 15, fontWeight: '600' },
   relationship: { fontSize: 12, color: '#888' },
-  carThumbRow: { flexDirection: 'row', gap: 5, marginTop: 10 },
-  carThumbFrame: { width: 42, height: 30, borderRadius: 6, overflow: 'hidden', backgroundColor: '#E2E8F0' },
+  carThumbRow: { flexDirection: 'row', gap: 6, marginTop: 10 },
+  carThumbFrame: { width: 63, height: 45, borderRadius: 8, overflow: 'hidden', backgroundColor: '#E2E8F0' },
   carThumb: { width: '100%', height: '100%' },
   carThumbFallback: { flex: 1, backgroundColor: '#CBD5E1' },
 });

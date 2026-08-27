@@ -92,17 +92,27 @@ export function useCars(memberId: string | undefined) {
     [memberId, refresh, uploadPhoto, runPhotoQualityCheck]
   );
 
-  const updateCar = useCallback(async (carId: string, changes: Partial<Car>) => {
-    const { data, error: updateErr } = await supabase
-      .from('cars')
-      .update(changes)
-      .eq('id', carId)
-      .select()
-      .single();
-    if (updateErr) throw updateErr;
-    await refresh();
-    return data as Car;
-  }, [refresh]);
+  const updateCar = useCallback(
+    async (carId: string, changes: Partial<Car>, localPhotoUri?: string) => {
+      let photoPatch: Partial<Car> = {};
+      if (localPhotoUri) {
+        const photoUrl = await uploadPhoto(localPhotoUri, carId);
+        const qualityStatus = await runPhotoQualityCheck(photoUrl);
+        photoPatch = { photo_url: photoUrl, photo_quality_status: qualityStatus };
+      }
+
+      const { data, error: updateErr } = await supabase
+        .from('cars')
+        .update({ ...changes, ...photoPatch })
+        .eq('id', carId)
+        .select()
+        .single();
+      if (updateErr) throw updateErr;
+      await refresh();
+      return data as Car;
+    },
+    [refresh, uploadPhoto, runPhotoQualityCheck]
+  );
 
   const deleteCar = useCallback(async (carId: string) => {
     const { error: deleteErr } = await supabase.from('cars').delete().eq('id', carId);
