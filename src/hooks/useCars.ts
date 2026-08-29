@@ -120,5 +120,23 @@ export function useCars(memberId: string | undefined) {
     await refresh();
   }, [refresh]);
 
-  return { cars, loading, error, refresh, addCar, updateCar, deleteCar };
+  /** Persists a new car order for one member. Pass the full list of that
+   * member's car IDs in their new display order — each gets its
+   * order_index set to its position in the array. Used by both the
+   * up/down arrow buttons and true drag-and-drop, since both ultimately
+   * just produce a reordered ID list. */
+  const reorderCars = useCallback(
+    async (orderedCarIds: string[]) => {
+      const updates = orderedCarIds.map((id, index) =>
+        supabase.from('cars').update({ order_index: index }).eq('id', id)
+      );
+      const results = await Promise.all(updates);
+      const firstError = results.find((r) => r.error)?.error;
+      if (firstError) throw firstError;
+      await refresh();
+    },
+    [refresh]
+  );
+
+  return { cars, loading, error, refresh, addCar, updateCar, deleteCar, reorderCars };
 }

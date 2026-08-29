@@ -12,15 +12,24 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useFamily } from '@/hooks/useFamily';
 import { useMembers } from '@/hooks/useMembers';
 import { useAllFamilyCars } from '@/hooks/useAllFamilyCars';
 import MemberTile from '@/components/MemberTile';
 import MemberEditModal from '@/components/MemberEditModal';
+import type { RootStackParamList } from '@/navigation/RootNavigator';
 import type { Member } from '@/types/database';
 
 export default function FamilyScreen() {
+  // This screen has no local stack of its own — it's a bare Tab.Screen.
+  // ReorderCars lives on the root stack one level up, so typing directly
+  // against RootStackParamList (rather than adding a full Tab param list
+  // just for this one cross-tab call) keeps this simple and still
+  // type-checked at the call site below.
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { family, currentMember } = useFamily();
   const { members, addMemberWithInference, updateMember } = useMembers(family?.id);
   const { cars: allCars } = useAllFamilyCars(family?.id);
@@ -101,6 +110,7 @@ export default function FamilyScreen() {
                 cars={carsByMember(item.id)}
                 onPress={() => setEditingMember(item)}
                 onEdit={() => setEditingMember(item)}
+                onReorder={() => navigation.navigate('ReorderCars', { member: item })}
               />
               {item.parent_member_id && !item.parent_link_confirmed && (
                 <Text style={styles.pendingBadge}>Link pending confirmation</Text>

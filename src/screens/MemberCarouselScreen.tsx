@@ -9,11 +9,11 @@ import {
   Modal,
   useWindowDimensions,
 } from 'react-native';
-import type { RouteProp } from '@react-navigation/native';
+import type { RouteProp, CompositeNavigationProp } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import type { TreeStackParamList } from '@/navigation/RootNavigator';
+import type { TreeStackParamList, RootStackParamList } from '@/navigation/RootNavigator';
 import { useCars } from '@/hooks/useCars';
 import { supabase } from '@/lib/supabase';
 import CarCard from '@/components/CarCard';
@@ -21,7 +21,10 @@ import type { Car, CarFact } from '@/types/database';
 
 type Props = {
   route: RouteProp<TreeStackParamList, 'MemberCarousel'>;
-  navigation: NativeStackNavigationProp<TreeStackParamList, 'MemberCarousel'>;
+  navigation: CompositeNavigationProp<
+    NativeStackNavigationProp<TreeStackParamList, 'MemberCarousel'>,
+    NativeStackNavigationProp<RootStackParamList>
+  >;
 };
 
 export default function MemberCarouselScreen({ route, navigation }: Props) {
@@ -172,6 +175,16 @@ export default function MemberCarouselScreen({ route, navigation }: Props) {
         <Text style={styles.fabIcon}>+</Text>
       </Pressable>
 
+      {cars.length > 1 && (
+        <Pressable
+          style={styles.reorderButton}
+          onPress={() => navigation.navigate('ReorderCars', { member })}
+        >
+          <MaterialCommunityIcons name="swap-vertical" size={16} color="#1D4ED8" />
+          <Text style={styles.reorderButtonText}>Reorder</Text>
+        </Pressable>
+      )}
+
       <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={() => setDeleteTarget(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -227,6 +240,26 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   fabIcon: { color: '#fff', fontSize: 30, fontWeight: '400', lineHeight: 32 },
+  reorderButton: {
+    position: 'absolute',
+    left: 20,
+    bottom: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+  },
+  reorderButtonText: { color: '#1D4ED8', fontWeight: '600', fontSize: 13 },
   navArrow: {
     position: 'absolute',
     top: '42%',

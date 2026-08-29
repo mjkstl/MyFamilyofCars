@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { View, FlatList, StyleSheet, Text, ActivityIndicator, SafeAreaView, Pressable, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
@@ -13,10 +14,17 @@ import MemberTile from '@/components/MemberTile';
 import MemberEditModal from '@/components/MemberEditModal';
 import AppLogoHeader from '@/components/AppLogoHeader';
 import FamilyPoster from '@/components/FamilyPoster';
-import type { TreeStackParamList } from '@/navigation/RootNavigator';
+import type { TreeStackParamList, RootStackParamList } from '@/navigation/RootNavigator';
 import type { Member } from '@/types/database';
 
-type Nav = NativeStackNavigationProp<TreeStackParamList, 'TreeHome'>;
+// ReorderCars lives on the root stack, one level above this screen's own
+// TreeStack — composing both param lists lets navigation.navigate(...)
+// reach it with full type-checking, matching how it actually resolves at
+// runtime (React Navigation bubbles unresolved route names upward).
+type Nav = CompositeNavigationProp<
+  NativeStackNavigationProp<TreeStackParamList, 'TreeHome'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 const SCROLL_PAGE_SIZE = 420;
 
@@ -119,6 +127,7 @@ export default function TreeScreen() {
             cars={carsByMember(item.id)}
             onPress={() => navigation.navigate('MemberCarousel', { member: item })}
             onEdit={() => setEditingMember(item)}
+            onReorder={() => navigation.navigate('ReorderCars', { member: item })}
           />
         )}
         ListEmptyComponent={

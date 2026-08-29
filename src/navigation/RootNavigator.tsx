@@ -11,6 +11,7 @@ import TreeScreen from '@/screens/TreeScreen';
 import MemberCarouselScreen from '@/screens/MemberCarouselScreen';
 import AddCarScreen from '@/screens/AddCarScreen';
 import FamilyScreen from '@/screens/FamilyScreen';
+import CarReorderScreen from '@/screens/CarReorderScreen';
 import type { Car, Member } from '@/types/database';
 
 export type TreeStackParamList = {
@@ -22,8 +23,21 @@ export type TreeStackParamList = {
   AddCarForMember: { member: Member; car?: Car };
 };
 
+// ReorderCars needs to be reachable from My Tree, Family Tree, AND a
+// member's carousel — three different tabs/stacks. Rather than duplicate
+// it inside each nested navigator, it lives once at the ROOT level as a
+// modal. React Navigation's navigate() automatically bubbles an
+// unresolved route name up to parent navigators, so a plain
+// navigation.navigate('ReorderCars', {member}) call from deep inside any
+// tab correctly finds it here.
+export type RootStackParamList = {
+  MainTabs: undefined;
+  ReorderCars: { member: Member };
+};
+
 const Tab = createBottomTabNavigator();
 const TreeStack = createNativeStackNavigator<TreeStackParamList>();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 function TreeStackNavigator() {
   return (
@@ -44,6 +58,40 @@ function TreeStackNavigator() {
         })}
       />
     </TreeStack.Navigator>
+  );
+}
+
+function MainTabs({ initialRouteName }: { initialRouteName: string }) {
+  return (
+    <Tab.Navigator initialRouteName={initialRouteName} screenOptions={{ headerShown: false }}>
+      <Tab.Screen
+        name="Tree"
+        component={TreeStackNavigator}
+        options={{
+          tabBarLabel: 'My Tree',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="family-tree" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Add Car"
+        component={AddCarScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="car" color={color} size={size} />,
+        }}
+      />
+      <Tab.Screen
+        name="Family"
+        component={FamilyScreen}
+        options={{
+          tabBarLabel: 'Family Tree',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="account-group" color={color} size={size} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
   );
 }
 
@@ -75,38 +123,16 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer>
-      <Tab.Navigator
-        initialRouteName={justOnboarded ? 'Add Car' : 'Tree'}
-        screenOptions={{ headerShown: false }}
-      >
-        <Tab.Screen
-          name="Tree"
-          component={TreeStackNavigator}
-          options={{
-            tabBarLabel: 'My Tree',
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="family-tree" color={color} size={size} />
-            ),
-          }}
+      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+        <RootStack.Screen name="MainTabs">
+          {() => <MainTabs initialRouteName={justOnboarded ? 'Add Car' : 'Tree'} />}
+        </RootStack.Screen>
+        <RootStack.Screen
+          name="ReorderCars"
+          component={CarReorderScreen}
+          options={{ presentation: 'modal', headerShown: true, title: 'Reorder cars' }}
         />
-        <Tab.Screen
-          name="Add Car"
-          component={AddCarScreen}
-          options={{
-            tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="car" color={color} size={size} />,
-          }}
-        />
-        <Tab.Screen
-          name="Family"
-          component={FamilyScreen}
-          options={{
-            tabBarLabel: 'Family Tree',
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="account-group" color={color} size={size} />
-            ),
-          }}
-        />
-      </Tab.Navigator>
+      </RootStack.Navigator>
     </NavigationContainer>
   );
 }
