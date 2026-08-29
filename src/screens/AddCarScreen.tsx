@@ -147,8 +147,16 @@ export default function AddCarScreen() {
       };
 
       if (isEditMode && editingCar) {
-        await updateCar(editingCar.id, carDetails, photoUri ?? undefined);
-        Alert.alert('Saved', `${yearNum} ${make} ${model} has been updated.`);
+        const reassigned = effectiveMemberId && effectiveMemberId !== editingCar.member_id;
+        await updateCar(
+          editingCar.id,
+          { ...carDetails, ...(reassigned ? { member_id: effectiveMemberId } : {}) },
+          photoUri ?? undefined
+        );
+        const savedMsg = reassigned
+          ? `${yearNum} ${make} ${model} has been updated and moved to ${selectedMember?.display_name}.`
+          : `${yearNum} ${make} ${model} has been updated.`;
+        Alert.alert('Saved', savedMsg);
       } else {
         await addCar(carDetails, photoUri ?? undefined);
         const forName = selectedMember?.display_name ?? 'the tree';
@@ -179,9 +187,9 @@ export default function AddCarScreen() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.heading}>{isEditMode ? 'Edit car' : 'Add a car'}</Text>
 
-        {!preselectedMemberId && members.length > 1 && (
+        {(!preselectedMemberId || isEditMode) && members.length > 1 && (
           <>
-            <Text style={styles.label}>Whose car is this?</Text>
+            <Text style={styles.label}>{isEditMode ? 'Reassign to' : 'Whose car is this?'}</Text>
             <View style={styles.memberRow}>
               {members.map((m) => (
                 <Pressable

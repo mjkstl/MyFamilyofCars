@@ -32,7 +32,7 @@ export default function CarCard({
           <View style={styles.factBubbleTail} />
         </View>
         {car.photo_url ? (
-          <Image source={{ uri: car.photo_url }} style={styles.photo} />
+          <Image source={{ uri: car.photo_url }} style={styles.photo} resizeMode="contain" />
         ) : (
           <View style={[styles.photo, styles.photoFallback]}>
             <Text style={styles.photoFallbackText}>No photo yet</Text>
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     transform: [{ rotate: '45deg' }],
   },
-  photo: { width: '100%', height: 180, borderRadius: 12, marginBottom: 10, backgroundColor: '#eee' },
+  photo: { width: '100%', height: 90, borderRadius: 12, marginBottom: 10, backgroundColor: '#F3F4F6' },
   photoFallback: { alignItems: 'center', justifyContent: 'center' },
   photoFallbackText: { color: '#999' },
   flagBanner: { backgroundColor: '#FEF3C7', borderRadius: 8, padding: 8, marginBottom: 8 },

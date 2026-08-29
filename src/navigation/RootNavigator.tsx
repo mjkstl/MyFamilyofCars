@@ -83,6 +83,7 @@ export default function RootNavigator() {
           name="Tree"
           component={TreeStackNavigator}
           options={{
+            tabBarLabel: 'My Tree',
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="family-tree" color={color} size={size} />
             ),
@@ -99,6 +100,7 @@ export default function RootNavigator() {
           name="Family"
           component={FamilyScreen}
           options={{
+            tabBarLabel: 'Family Tree',
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="account-group" color={color} size={size} />
             ),
