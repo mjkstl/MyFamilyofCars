@@ -187,7 +187,7 @@ export default function AddCarScreen() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.heading}>{isEditMode ? 'Edit car' : 'Add a car'}</Text>
 
-        {(!preselectedMemberId || isEditMode) && members.length > 1 && (
+        {members.length > 1 && (
           <>
             <Text style={styles.label}>{isEditMode ? 'Reassign to' : 'Whose car is this?'}</Text>
             <View style={styles.memberRow}>
