@@ -90,6 +90,7 @@ export default function TreeScreen() {
     <SafeAreaView style={{ flex: 1 }}>
       <FlatList
         ref={listRef}
+        style={{ width: '100%', maxWidth: 480, alignSelf: 'center' }}
         data={members}
         keyExtractor={(m) => m.id}
         numColumns={2}
@@ -164,7 +165,7 @@ export default function TreeScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: 16 },
-  row: { justifyContent: 'space-between' },
+  row: { justifyContent: 'flex-start', gap: 20 },
   familyName: { fontSize: 20, fontWeight: '800', textAlign: 'center', marginTop: 14, marginBottom: 10 },
   shareButton: { backgroundColor: '#1D4ED8', borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 16 },
   shareButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },

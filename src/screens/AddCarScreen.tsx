@@ -13,7 +13,7 @@ import {
   Linking,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 
 import { useFamily } from '@/hooks/useFamily';
 import { useMembers } from '@/hooks/useMembers';
@@ -35,7 +35,18 @@ export default function AddCarScreen() {
   const navigation = useNavigation();
   const route = useRoute<AddCarRouteProp>();
   const { family, currentMember } = useFamily();
-  const { members } = useMembers(family?.id);
+  const { members, refresh: refreshMembers } = useMembers(family?.id);
+
+  // "Add Car" is a persistent tab — React Navigation keeps it mounted
+  // across tab switches rather than remounting it, so its member list
+  // was fetched once and never updated again. Without this, a family
+  // member added on the Family Tree tab (like Davis in testing) would
+  // never appear here as an assignable option until an app reload.
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshMembers();
+    }, [refreshMembers])
+  );
 
   const editingCar = route.params?.car ?? null;
   const isEditMode = !!editingCar;

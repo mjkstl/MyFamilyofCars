@@ -84,7 +84,8 @@ export default function FamilyScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <View style={{ flex: 1, padding: 16 }}>
+      <View style={{ flex: 1, padding: 16, alignItems: 'center' }}>
+        <View style={{ width: '100%', maxWidth: 480, flex: 1 }}>
         <Text style={styles.heading}>{family?.name}</Text>
 
         <FlatList
@@ -124,6 +125,7 @@ export default function FamilyScreen() {
             </Text>
           </View>
         )}
+        </View>
       </View>
 
       <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={() => setModalOpen(false)}>
@@ -159,7 +161,7 @@ export default function FamilyScreen() {
 
 const styles = StyleSheet.create({
   heading: { fontSize: 22, fontWeight: '800', marginBottom: 4 },
-  row: { justifyContent: 'space-between' },
+  row: { justifyContent: 'flex-start', gap: 20 },
   tileWrap: { alignItems: 'center' },
   pendingBadge: { fontSize: 11, color: '#B45309', marginTop: -14, marginBottom: 10 },
   addButton: { backgroundColor: '#1D4ED8', borderRadius: 10, padding: 16, alignItems: 'center' },
