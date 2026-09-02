@@ -24,6 +24,8 @@ export interface Member {
   created_at: string;
 }
 
+export type CarStatus = 'current' | 'memory' | 'dream';
+
 export interface Car {
   id: string;
   member_id: string;
@@ -34,6 +36,8 @@ export interface Car {
   color: string | null;
   nickname: string | null;
   memories: string | null;
+  fun_fact: string | null;
+  status: CarStatus;
   photo_url: string | null;
   photo_quality_status: PhotoQualityStatus;
   purchase_date: string | null;
@@ -82,6 +86,8 @@ export type CarInsert = Pick<Car, 'member_id' | 'make' | 'model' | 'year'> &
       | 'color'
       | 'nickname'
       | 'memories'
+      | 'fun_fact'
+      | 'status'
       | 'photo_url'
       | 'photo_quality_status'
       | 'purchase_date'

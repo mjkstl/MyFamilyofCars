@@ -28,7 +28,7 @@ type Nav = CompositeNavigationProp<
 
 const SCROLL_PAGE_SIZE = 420;
 
-export default function TreeScreen() {
+export default function MyTreeScreen() {
   const navigation = useNavigation<Nav>();
   const { family } = useFamily();
   const { members, loading, updateMember } = useMembers(family?.id);

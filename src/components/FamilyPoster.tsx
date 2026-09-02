@@ -8,7 +8,7 @@ interface Props {
 }
 
 /**
- * Rendered off-screen (see TreeScreen) and captured via react-native-
+ * Rendered off-screen (see MyTreeScreen) and captured via react-native-
  * view-shot into a shareable poster image. Keep this visually simple —
  * it's the Phase 1 "one basic layout" template; more styles come in
  * Phase 2/3 monetization tiers.

@@ -27,7 +27,7 @@ type Props = {
   >;
 };
 
-export default function MemberCarouselScreen({ route, navigation }: Props) {
+export default function MemberEditScreen({ route, navigation }: Props) {
   const { member } = route.params;
   const { cars, loading, deleteCar, refresh } = useCars(member.id);
   const [factsByCarId, setFactsByCarId] = useState<Record<string, CarFact | null>>({});

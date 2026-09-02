@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, Image, Pressable, StyleSheet, Dimensions } from 'react-native';
-import type { Car, CarFact } from '@/types/database';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import type { Car, CarFact, CarStatus } from '@/types/database';
 import { getColorHex } from '@/utils/carColors';
 
 const CARD_WIDTH = Dimensions.get('window').width * 0.82;
+
+const STATUS_META: Record<CarStatus, { label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; bg: string; fg: string }> = {
+  current: { label: 'Currently Driving', icon: 'circle', bg: '#DCFCE7', fg: '#166534' },
+  memory: { label: 'Memory', icon: 'image-multiple', bg: '#E0E7FF', fg: '#3730A3' },
+  dream: { label: 'Dream Car', icon: 'star', bg: '#FEF3C7', fg: '#92400E' },
+};
 
 export default function CarCard({
   car,
@@ -51,6 +58,13 @@ export default function CarCard({
       </Text>
       {car.nickname ? <Text style={styles.nickname}>“{car.nickname}”</Text> : null}
 
+      <View style={[styles.statusBadge, { backgroundColor: STATUS_META[car.status].bg }]}>
+        <MaterialCommunityIcons name={STATUS_META[car.status].icon} size={12} color={STATUS_META[car.status].fg} />
+        <Text style={[styles.statusBadgeText, { color: STATUS_META[car.status].fg }]}>
+          {STATUS_META[car.status].label}
+        </Text>
+      </View>
+
       <View style={styles.metaRow}>
         {car.color ? (
           <View style={styles.colorRow}>
@@ -73,6 +87,13 @@ export default function CarCard({
         <View style={styles.memoriesBox}>
           <Text style={styles.memoriesLabel}>Memories</Text>
           <Text style={styles.memoriesText}>{car.memories}</Text>
+        </View>
+      ) : null}
+
+      {car.fun_fact ? (
+        <View style={styles.funFactBox}>
+          <MaterialCommunityIcons name="lightbulb-on-outline" size={13} color="#0E7490" />
+          <Text style={styles.funFactText}>{car.fun_fact}</Text>
         </View>
       ) : null}
 
@@ -147,6 +168,17 @@ const styles = StyleSheet.create({
   flagBannerText: { color: '#92400E', fontSize: 12 },
   title: { fontSize: 18, fontWeight: '700' },
   nickname: { fontSize: 14, color: '#666', marginTop: 2 },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    borderRadius: 10,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    marginTop: 6,
+  },
+  statusBadgeText: { fontSize: 11, fontWeight: '700' },
   metaRow: { flexDirection: 'row', marginTop: 8 },
   colorRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   swatch: { width: 14, height: 14, borderRadius: 7, borderWidth: 1, borderColor: '#ccc' },
@@ -157,6 +189,16 @@ const styles = StyleSheet.create({
   memoriesBox: { marginTop: 10, backgroundColor: '#FFFBEB', borderRadius: 10, padding: 10 },
   memoriesLabel: { fontSize: 11, fontWeight: '700', color: '#B45309', marginBottom: 3, textTransform: 'uppercase' },
   memoriesText: { fontSize: 13, color: '#78350F', lineHeight: 18 },
+  funFactBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 8,
+    backgroundColor: '#ECFEFF',
+    borderRadius: 10,
+    padding: 10,
+  },
+  funFactText: { flex: 1, fontSize: 12, color: '#155E75', lineHeight: 17, fontStyle: 'italic' },
   actionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12 },
   actionEdit: { color: '#1D4ED8', fontSize: 13, fontWeight: '600' },
   actionDelete: { color: '#DC2626', fontSize: 13, fontWeight: '600' },

@@ -7,8 +7,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useFamily } from '@/hooks/useFamily';
 import OnboardingScreen from '@/screens/OnboardingScreen';
-import TreeScreen from '@/screens/TreeScreen';
-import MemberCarouselScreen from '@/screens/MemberCarouselScreen';
+import MyTreeScreen from '@/screens/MyTreeScreen';
+import MemberEditScreen from '@/screens/MemberEditScreen';
 import AddCarScreen from '@/screens/AddCarScreen';
 import FamilyScreen from '@/screens/FamilyScreen';
 import CarReorderScreen from '@/screens/CarReorderScreen';
@@ -42,10 +42,10 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 function TreeStackNavigator() {
   return (
     <TreeStack.Navigator>
-      <TreeStack.Screen name="TreeHome" component={TreeScreen} options={{ title: 'Family Tree' }} />
+      <TreeStack.Screen name="TreeHome" component={MyTreeScreen} options={{ title: 'My Tree' }} />
       <TreeStack.Screen
         name="MemberCarousel"
-        component={MemberCarouselScreen}
+        component={MemberEditScreen}
         options={({ route }) => ({ title: route.params.member.display_name })}
       />
       <TreeStack.Screen
