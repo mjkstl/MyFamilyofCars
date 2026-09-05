@@ -65,6 +65,9 @@ export default function MemberTile({
                 ) : (
                   <View style={styles.carThumbFallback} />
                 )}
+                <Text style={styles.carThumbLabel} numberOfLines={1}>
+                  {car.year} {car.make} {car.model}
+                </Text>
               </View>
             ))}
           </View>
@@ -109,6 +112,7 @@ const styles = StyleSheet.create({
   carThumbFrameExpanded: { width: '100%', height: 70 },
   carThumb: { width: '100%', height: '100%' },
   carThumbFallback: { flex: 1, backgroundColor: '#CBD5E1' },
+  carThumbLabel: { fontSize: 10, color: '#475569', marginTop: 3, maxWidth: 63 },
   // "Brown" down-arrow per the design note — a warm amber-brown rather
   // than the app's usual blue, so it reads as its own distinct control.
   expandButton: {
