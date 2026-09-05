@@ -105,6 +105,10 @@ export default function AddCarScreen() {
 
   const era = deriveEra(year);
   const previewPhotoUri = photoUri ?? editingCar?.photo_url ?? null;
+  const searchDetails = [year.trim(), make.trim(), model.trim(), color?.trim(), trim.trim()].filter(Boolean).join(' ');
+  const searchLabel = searchDetails
+    ? `Don't have a photo? Search for my car: ${searchDetails}`
+    : "Don't have a photo? Search for my car";
 
   const onMakeChange = async (text: string) => {
     setMake(text);
@@ -145,7 +149,7 @@ export default function AddCarScreen() {
   // automated stock-photo API — that's on hold pending a pricing
   // decision, so this is the zero-cost, zero-dependency stand-in.
   const handleSearchForMyCar = async () => {
-    const query = encodeURIComponent(`${year} ${make} ${model}`.trim() || 'car');
+    const query = encodeURIComponent(searchDetails || 'car');
     const url = `https://www.google.com/search?tbm=isch&q=${query}`;
     try {
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -299,7 +303,7 @@ export default function AddCarScreen() {
         )}
         <Pressable style={styles.searchPill} onPress={handleSearchForMyCar}>
           <MaterialCommunityIcons name="magnify" size={15} color="#B45309" />
-          <Text style={styles.searchPillText}>Don&apos;t have a photo? Search for my car</Text>
+          <Text style={styles.searchPillText}>{searchLabel}</Text>
         </Pressable>
         <Text style={styles.searchHint}>Opens a Google Images search in your browser — save a photo you like, then upload it above.</Text>
 
@@ -379,6 +383,26 @@ export default function AddCarScreen() {
           ))}
         </View>
 
+        <Text style={styles.label}>Car color{color ? ` — ${color}` : ''}</Text>
+        <View style={styles.colorRow}>
+          {CAR_COLORS.map((c) => (
+            <Pressable
+              key={c.name}
+              onPress={() => setColor(c.name)}
+              accessibilityLabel={c.name}
+              style={[styles.swatch, { backgroundColor: c.hex }, c.hex === '#FFFFFF' && styles.swatchOutline, color === c.name && styles.swatchSelected]}
+            />
+          ))}
+        </View>
+        <Text style={styles.label}>Trim (optional)</Text>
+        <TextInput
+          accessibilityLabel="Car trim"
+          style={styles.input}
+          value={trim}
+          onChangeText={setTrim}
+          placeholder="e.g. Sport, Touring, Limited"
+        />
+
         <Text style={styles.label}>Nickname (optional)</Text>
         <TextInput accessibilityLabel="Car nickname" style={styles.input} value={nickname} onChangeText={setNickname} placeholder="e.g. Old Betsy" />
 
@@ -413,25 +437,6 @@ export default function AddCarScreen() {
                 </View>
               ))}
             </View>
-            <Text style={styles.label}>Car color{color ? ` — ${color}` : ''}</Text>
-            <View style={styles.colorRow}>
-              {CAR_COLORS.map((c) => (
-                <Pressable
-                  key={c.name}
-                  onPress={() => setColor(c.name)}
-                  accessibilityLabel={c.name}
-                  style={[styles.swatch, { backgroundColor: c.hex }, c.hex === '#FFFFFF' && styles.swatchOutline, color === c.name && styles.swatchSelected]}
-                />
-              ))}
-            </View>
-            <Text style={styles.label}>Trim (optional)</Text>
-            <TextInput
-              accessibilityLabel="Car trim"
-              style={styles.input}
-              value={trim}
-              onChangeText={setTrim}
-              placeholder="e.g. Sport, Touring, Limited"
-            />
             <Text style={styles.label}>Status</Text>
             <View style={styles.statusRow}>
               {STATUS_OPTIONS.map((opt) => (
