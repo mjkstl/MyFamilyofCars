@@ -107,8 +107,8 @@ export default function AddCarScreen() {
   const previewPhotoUri = photoUri ?? editingCar?.photo_url ?? null;
   const searchDetails = [year.trim(), make.trim(), model.trim(), color?.trim(), trim.trim()].filter(Boolean).join(' ');
   const searchLabel = searchDetails
-    ? `Don't have a photo? Search for my car: ${searchDetails}`
-    : "Don't have a photo? Search for my car";
+    ? `Don't have a photo, Search for my car: ${searchDetails}`
+    : "Don't have a photo, Search for my car";
 
   const onMakeChange = async (text: string) => {
     setMake(text);
@@ -292,21 +292,24 @@ export default function AddCarScreen() {
       </View>
 
       <ScrollView style={styles.form} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.label}>Photo (optional)</Text>
-        {previewPhotoUri ? (
-          <Image source={{ uri: previewPhotoUri }} style={styles.photoPreview} />
-        ) : (
-          <Pressable style={[styles.photoPreview, styles.photoFallback]} onPress={pickPhoto}>
-            <MaterialCommunityIcons name="image-outline" size={28} color="#9CA3AF" />
-            <Text style={styles.photoFallbackText}>Add a photo</Text>
-          </Pressable>
-        )}
-        <Pressable style={styles.searchPill} onPress={handleSearchForMyCar}>
-          <MaterialCommunityIcons name="magnify" size={15} color="#B45309" />
-          <Text style={styles.searchPillText}>{searchLabel}</Text>
-        </Pressable>
-        <Text style={styles.searchHint}>Opens a Google Images search in your browser — save a photo you like, then upload it above.</Text>
+        <Text style={styles.label}>Person this car is connected to</Text>
+        <View style={styles.memberRow}>
+          {members.map((m) => (
+            <Pressable
+              key={m.id}
+              accessibilityRole="button"
+              accessibilityState={{ selected: m.id === effectiveMemberId }}
+              onPress={() => setSelectedMemberId(m.id)}
+              style={[styles.memberChip, m.id === effectiveMemberId && styles.memberChipSelected]}
+            >
+              <Text style={[styles.memberChipText, m.id === effectiveMemberId && styles.memberChipTextSelected]}>
+                {m.display_name}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
+        <Text style={styles.sectionLabel}>Year, Make and Model</Text>
         <View style={styles.sideBySideRow}>
           <View style={styles.sideBySideField}>
             <Text style={styles.label}>Year</Text>
@@ -366,22 +369,20 @@ export default function AddCarScreen() {
           </View>
         </View>
 
-        <Text style={styles.label}>Person this car is connected to</Text>
-        <View style={styles.memberRow}>
-          {members.map((m) => (
-            <Pressable
-              key={m.id}
-              accessibilityRole="button"
-              accessibilityState={{ selected: m.id === effectiveMemberId }}
-              onPress={() => setSelectedMemberId(m.id)}
-              style={[styles.memberChip, m.id === effectiveMemberId && styles.memberChipSelected]}
-            >
-              <Text style={[styles.memberChipText, m.id === effectiveMemberId && styles.memberChipTextSelected]}>
-                {m.display_name}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <Text style={styles.label}>Photo (optional)</Text>
+        {previewPhotoUri ? (
+          <Image source={{ uri: previewPhotoUri }} style={styles.photoPreview} />
+        ) : (
+          <Pressable style={[styles.photoPreview, styles.photoFallback]} onPress={pickPhoto}>
+            <MaterialCommunityIcons name="image-outline" size={28} color="#9CA3AF" />
+            <Text style={styles.photoFallbackText}>Add a photo</Text>
+          </Pressable>
+        )}
+        <Pressable style={styles.searchPill} onPress={handleSearchForMyCar}>
+          <MaterialCommunityIcons name="magnify" size={15} color="#B45309" />
+          <Text style={styles.searchPillText}>{searchLabel}</Text>
+        </Pressable>
+        <Text style={styles.searchHint}>Opens a Google Images search in your browser — save a photo you like, then upload it above.</Text>
 
         <Text style={styles.label}>Car color{color ? ` — ${color}` : ''}</Text>
         <View style={styles.colorRow}>
@@ -406,18 +407,6 @@ export default function AddCarScreen() {
         <Text style={styles.label}>Nickname (optional)</Text>
         <TextInput accessibilityLabel="Car nickname" style={styles.input} value={nickname} onChangeText={setNickname} placeholder="e.g. Old Betsy" />
 
-        <Text style={styles.label}>The story</Text>
-        <TextInput
-          accessibilityLabel="Car story"
-          style={[styles.input, styles.storyInput]}
-          value={memories}
-          onChangeText={setMemories}
-          placeholder="Dad’s first new car. It took us on every summer road trip."
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-        />
-
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ expanded: moreDetailsOpen }}
@@ -429,6 +418,17 @@ export default function AddCarScreen() {
         </Pressable>
         {moreDetailsOpen && (
           <>
+            <Text style={styles.label}>The story</Text>
+            <TextInput
+              accessibilityLabel="Car story"
+              style={[styles.input, styles.storyInput]}
+              value={memories}
+              onChangeText={setMemories}
+              placeholder="Dad’s first new car. It took us on every summer road trip."
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
             <Text style={styles.label}>Era</Text>
             <View style={styles.eraRow}>
               {DECADES.map((d) => (
@@ -501,6 +501,7 @@ const styles = StyleSheet.create({
   saveChipText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   container: { padding: 20, gap: 4, backgroundColor: '#F8FAFC' },
   label: { fontSize: 13, fontWeight: '700', color: '#555', marginTop: 16, marginBottom: 6 },
+  sectionLabel: { fontSize: 15, fontWeight: '800', color: '#334155', marginTop: 18, marginBottom: 2 },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12, fontSize: 16, backgroundColor: '#fff' },
   suggestionBox: { borderWidth: 1, borderColor: '#eee', borderRadius: 8, marginTop: 4, maxHeight: 180 },
   suggestion: { padding: 10, fontSize: 15, borderBottomWidth: 1, borderBottomColor: '#f2f2f2' },
