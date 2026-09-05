@@ -1,9 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, FlatList, StyleSheet, Text, ActivityIndicator, SafeAreaView, Pressable, Alert, Share, TextInput, Modal, Platform } from 'react-native';
+import { View, FlatList, StyleSheet, Text, ActivityIndicator, SafeAreaView, Pressable, Alert, Share, TextInput, Modal } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { captureRef } from 'react-native-view-shot';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as Clipboard from 'expo-clipboard';
 
@@ -14,7 +13,6 @@ import MemberTile from '@/components/MemberTile';
 import MemberEditModal from '@/components/MemberEditModal';
 import AddFamilyMemberModal from '@/components/AddFamilyMemberModal';
 import AppLogoHeader from '@/components/AppLogoHeader';
-import FamilyPoster from '@/components/FamilyPoster';
 import CarCard from '@/components/CarCard';
 import type { TreeStackParamList, RootStackParamList } from '@/navigation/RootNavigator';
 import type { CarStatus, Member } from '@/types/database';
@@ -32,14 +30,16 @@ type Nav = CompositeNavigationProp<
 
 const SCROLL_PAGE_SIZE = 420;
 
+function getFamilyInviteUrl(inviteCode: string | undefined): string {
+  return `https://my-familyof-cars.vercel.app/?invite=${encodeURIComponent(inviteCode ?? '')}`;
+}
+
 export default function MyTreeScreen() {
   const navigation = useNavigation<Nav>();
   const { family, currentMember } = useFamily();
   const { members, loading, addMemberWithInference, updateMember } = useMembers(family?.id);
   const { cars: allCars, refresh: refreshCars } = useAllFamilyCars(family?.id);
-  const posterRef = useRef<View>(null);
   const listRef = useRef<FlatList>(null);
-  const [sharing, setSharing] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [savingMember, setSavingMember] = useState(false);
   const [statusFilter, setStatusFilter] = useState<CarStatus | 'all'>('all');
@@ -82,37 +82,6 @@ export default function MyTreeScreen() {
   };
 
   const carsByMember = (memberId: string) => allCars.filter((c) => c.member_id === memberId);
-
-  const handleSharePoster = async () => {
-    setSharing(true);
-    try {
-      const message = `Our family cars on My Family of Cars${family?.name ? ` — ${family.name}` : ''}`;
-      if (Platform.OS === 'web') {
-        if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-          await navigator.share({ title: 'My Family of Cars', text: message });
-        } else {
-          await Clipboard.setStringAsync(message);
-          Alert.alert('Share text copied', 'Your family sharing message was copied to the clipboard.');
-        }
-        return;
-      }
-      if (!posterRef.current) {
-        throw new Error('The family poster is not ready yet. Please try again.');
-      }
-      const uri = await captureRef(posterRef, { format: 'png', quality: 1 });
-      await Share.share(
-        {
-          message,
-          url: uri,
-        },
-        { dialogTitle: 'Share My Family of Cars', subject: 'My Family of Cars' },
-      );
-    } catch (err) {
-      Alert.alert('Couldn\u2019t create poster', err instanceof Error ? err.message : String(err));
-    } finally {
-      setSharing(false);
-    }
-  };
 
   const handleInviteFamily = async () => {
     if (!family?.invite_code) {
@@ -190,15 +159,8 @@ export default function MyTreeScreen() {
             <Pressable style={styles.addMemberButton} onPress={() => setAddMemberOpen(true)}>
               <Text style={styles.addMemberText}>Add family member</Text>
             </Pressable>
-            <Pressable style={styles.shareButton} onPress={handleSharePoster} disabled={sharing}>
-              {sharing ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.shareButtonText}>Share My Family of Cars</Text>
-              )}
-            </Pressable>
             <Pressable style={styles.shareButton} onPress={handleInviteFamily}>
-              <Text style={styles.shareButtonText}>Invite family</Text>
+              <Text style={styles.shareButtonText}>Share my family</Text>
             </Pressable>
             <Text style={styles.inviteNote}>Invitees can add their cars and memories. Collections remain private by default.</Text>
             <View style={styles.countRow} accessibilityLabel={`${members.length} family members and ${allCars.length} cars`}>
@@ -305,7 +267,7 @@ export default function MyTreeScreen() {
       <Modal visible={inviteOpen} transparent animationType="fade" onRequestClose={() => setInviteOpen(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.inviteCard}>
-            <Text style={styles.inviteTitle}>Invite family</Text>
+            <Text style={styles.inviteTitle}>Share my family</Text>
             <Text style={styles.inviteBody}>Invitees can add their cars and memories. Your collection remains private by default.</Text>
             <Text style={styles.inviteCodeLabel}>Invite code</Text>
             <Text style={styles.inviteCode} selectable>{family?.invite_code}</Text>
@@ -322,9 +284,11 @@ export default function MyTreeScreen() {
             </Pressable>
             <Pressable
               style={styles.shareInviteButton}
-              onPress={() => Share.share({ message: `Join my family on My Family of Cars! Use invite code: ${family?.invite_code}` })}
+              onPress={() => Share.share({
+                message: `Join my family on My Family of Cars! Use invite code: ${family?.invite_code}. Open ${getFamilyInviteUrl(family?.invite_code)}`,
+              })}
             >
-              <Text style={styles.shareInviteText}>Share invite</Text>
+              <Text style={styles.shareInviteText}>Share message</Text>
             </Pressable>
             <Pressable onPress={() => setInviteOpen(false)}>
               <Text style={styles.cancelInviteText}>Close</Text>
@@ -333,10 +297,6 @@ export default function MyTreeScreen() {
         </View>
       </Modal>
 
-      {/* Rendered off-screen, only used as a source for captureRef above. */}
-      <View style={styles.offscreen}>
-        <FamilyPoster ref={posterRef} familyName={family?.name ?? 'Our Family'} cars={allCars} />
-      </View>
     </SafeAreaView>
   );
 }
