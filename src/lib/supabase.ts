@@ -5,22 +5,42 @@ import { createClient, type Session } from '@supabase/supabase-js';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY. ' +
-      'Copy .env.example to .env and fill in your Supabase project values, ' +
-      'then restart the Expo dev server (env vars are read at bundle time).'
-  );
-}
+/**
+ * If these are missing, we deliberately do NOT throw here. A throw at
+ * module-load time happens before React ever mounts — in the Expo dev
+ * server that's caught and shown as a helpful red error overlay, but in
+ * a production build (e.g. deployed to Vercel) there is no such overlay:
+ * the crash is silent and the result is a blank page with zero
+ * indication of what went wrong. Instead, we surface this as a value
+ * that App.tsx checks and renders as a clear, visible on-screen message.
+ */
+export const supabaseConfigError =
+  !supabaseUrl || !supabaseAnonKey
+    ? 'Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY. ' +
+      'If you\u2019re running locally, copy .env.example to .env and fill in your Supabase project values, ' +
+      'then restart the dev server (env vars are read at bundle time). ' +
+      'If this is a deployed build, check that both variables are set for the Production environment ' +
+      'in your hosting provider\u2019s dashboard, not just Development/Preview.'
+    : null;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-});
+// createClient validates its arguments and would itself throw on empty
+// strings, which would reintroduce the exact silent-crash problem above.
+// When config is missing, pass harmless placeholder values instead — the
+// app never actually uses this client for real requests in that case,
+// since App.tsx renders the config-error screen before RootNavigator
+// (and anything that would call supabase.*) ever mounts.
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-anon-key',
+  {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  }
+);
 
 /**
  * Ensures there's a signed-in (anonymous) Supabase auth session.
