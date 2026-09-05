@@ -11,6 +11,7 @@ import {
   Image,
   SafeAreaView,
   Linking,
+  Share,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -22,6 +23,8 @@ import { useCars } from '@/hooks/useCars';
 import { searchMakes, getModelsForMake } from '@/utils/nhtsa';
 import { CAR_COLORS } from '@/utils/carColors';
 import type { Car, CarStatus } from '@/types/database';
+import AppLogoHeader from '@/components/AppLogoHeader';
+import { useAllFamilyCars, type FamilyCar } from '@/hooks/useAllFamilyCars';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const DECADES = [1980, 1990, 2000, 2010, 2020];
@@ -75,6 +78,9 @@ export default function AddCarScreen() {
   );
 
   const { addCar, updateCar } = useCars(effectiveMemberId);
+  const { cars: familyCars, loading: familyCarsLoading } = useAllFamilyCars(family?.id);
+  const [moreDetailsOpen, setMoreDetailsOpen] = useState(false);
+  const [savedCar, setSavedCar] = useState<FamilyCar | null>(null);
 
   const [nickname, setNickname] = useState(editingCar?.nickname ?? '');
   const [make, setMake] = useState(editingCar?.make ?? '');
@@ -185,7 +191,12 @@ export default function AddCarScreen() {
           photoUri ?? undefined
         );
       } else {
-        await addCar(carDetails, photoUri ?? undefined);
+        const addedCar = await addCar(carDetails, photoUri ?? undefined);
+        if (!familyCarsLoading && familyCars.length === 0) {
+          setSavedCar({ ...(addedCar as Car), member_display_name: selectedMember?.display_name ?? 'Family' });
+          setSaving(false);
+          return;
+        }
         reset();
       }
 
@@ -198,6 +209,39 @@ export default function AddCarScreen() {
       setSaving(false);
     }
   };
+
+  const handleInviteFamily = async () => {
+    if (!family?.invite_code) return;
+    try {
+      await Share.share({
+        message: `Join our family on My Family of Cars! Use invite code: ${family.invite_code}`,
+      });
+    } catch (err) {
+      Alert.alert('Couldn’t share invite', err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  if (savedCar) {
+    return (
+      <SafeAreaView style={styles.successScreen}>
+        <AppLogoHeader compact />
+        <Text style={styles.successTitle}>Your family’s first car has a home.</Text>
+        <Text style={styles.successCar}>
+          {savedCar.year} {savedCar.make} {savedCar.model}
+        </Text>
+        <Text style={styles.successDriver}>Connected to {savedCar.member_display_name}</Text>
+        <Pressable style={styles.primarySuccessButton} onPress={handleInviteFamily}>
+          <Text style={styles.primaryButtonText}>Invite family</Text>
+        </Pressable>
+        <Pressable style={styles.secondarySuccessButton} onPress={() => { setSavedCar(null); reset(); }}>
+          <Text style={styles.secondaryButtonText}>Add another car</Text>
+        </Pressable>
+        <Pressable onPress={() => navigation.goBack()}>
+          <Text style={styles.backLink}>View Family Tree</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
 
   if (!effectiveMemberId) {
     return (
@@ -231,13 +275,34 @@ export default function AddCarScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.label}>Nickname (optional)</Text>
-        <TextInput style={styles.input} value={nickname} onChangeText={setNickname} placeholder="e.g. Old Betsy" />
+        <Text style={styles.label}>Photo (optional)</Text>
+        {previewPhotoUri ? (
+          <Image source={{ uri: previewPhotoUri }} style={styles.photoPreview} />
+        ) : (
+          <Pressable style={[styles.photoPreview, styles.photoFallback]} onPress={pickPhoto}>
+            <MaterialCommunityIcons name="image-outline" size={28} color="#9CA3AF" />
+            <Text style={styles.photoFallbackText}>Add a photo</Text>
+          </Pressable>
+        )}
+        <Pressable style={styles.photoActionButton} onPress={pickPhoto}>
+          <Text style={styles.photoActionText}>{photoUri ? 'Change photo' : 'Add photo'}</Text>
+        </Pressable>
 
         <View style={styles.sideBySideRow}>
           <View style={styles.sideBySideField}>
+            <Text style={styles.label}>Year</Text>
+            <TextInput
+              accessibilityLabel="Car year"
+              style={styles.input}
+              value={year}
+              onChangeText={setYear}
+              keyboardType="number-pad"
+              maxLength={4}
+            />
+          </View>
+          <View style={styles.sideBySideField}>
             <Text style={styles.label}>Make</Text>
-            <TextInput style={styles.input} value={make} onChangeText={onMakeChange} placeholder="Ford" />
+            <TextInput accessibilityLabel="Car make" style={styles.input} value={make} onChangeText={onMakeChange} placeholder="Ford" />
             {makeSuggestions.length > 0 && (
               <View style={styles.suggestionBox}>
                 {makeSuggestions.map((m) => (
@@ -257,6 +322,7 @@ export default function AddCarScreen() {
           <View style={styles.sideBySideField}>
             <Text style={styles.label}>Model</Text>
             <TextInput
+              accessibilityLabel="Car model"
               style={styles.input}
               value={model}
               onChangeText={setModel}
@@ -281,18 +347,49 @@ export default function AddCarScreen() {
           </View>
         </View>
 
-        <View style={styles.sideBySideRow}>
-          <View style={styles.sideBySideField}>
-            <Text style={styles.label}>Year</Text>
-            <TextInput
-              style={styles.input}
-              value={year}
-              onChangeText={setYear}
-              keyboardType="number-pad"
-              maxLength={4}
-            />
-          </View>
-          <View style={styles.sideBySideField}>
+        <Text style={styles.label}>Person this car is connected to</Text>
+        <View style={styles.memberRow}>
+          {members.map((m) => (
+            <Pressable
+              key={m.id}
+              accessibilityRole="button"
+              accessibilityState={{ selected: m.id === effectiveMemberId }}
+              onPress={() => setSelectedMemberId(m.id)}
+              style={[styles.memberChip, m.id === effectiveMemberId && styles.memberChipSelected]}
+            >
+              <Text style={[styles.memberChipText, m.id === effectiveMemberId && styles.memberChipTextSelected]}>
+                {m.display_name}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text style={styles.label}>Nickname (optional)</Text>
+        <TextInput accessibilityLabel="Car nickname" style={styles.input} value={nickname} onChangeText={setNickname} placeholder="e.g. Old Betsy" />
+
+        <Text style={styles.label}>The story</Text>
+        <TextInput
+          accessibilityLabel="Car story"
+          style={[styles.input, styles.storyInput]}
+          value={memories}
+          onChangeText={setMemories}
+          placeholder="Dad’s first new car. It took us on every summer road trip."
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+        />
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: moreDetailsOpen }}
+          style={styles.moreDetailsToggle}
+          onPress={() => setMoreDetailsOpen((open) => !open)}
+        >
+          <Text style={styles.moreDetailsText}>{moreDetailsOpen ? 'Hide details' : 'More details'}</Text>
+          <MaterialCommunityIcons name={moreDetailsOpen ? 'chevron-up' : 'chevron-down'} size={20} color="#1D4ED8" />
+        </Pressable>
+        {moreDetailsOpen && (
+          <>
             <Text style={styles.label}>Era</Text>
             <View style={styles.eraRow}>
               {DECADES.map((d) => (
@@ -301,110 +398,35 @@ export default function AddCarScreen() {
                 </View>
               ))}
             </View>
-          </View>
-        </View>
-
-        <Text style={styles.label}>Status</Text>
-        <View style={styles.statusRow}>
-          {STATUS_OPTIONS.map((opt) => (
-            <Pressable
-              key={opt.value}
-              onPress={() => setStatus(opt.value)}
-              style={[styles.statusPill, status === opt.value && styles.statusPillActive]}
-            >
-              <MaterialCommunityIcons
-                name={opt.icon}
-                size={16}
-                color={status === opt.value ? '#166534' : '#6B7280'}
-              />
-              <Text style={[styles.statusPillText, status === opt.value && styles.statusPillTextActive]}>
-                {opt.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {members.length > 1 && (
-          <>
-            <Text style={styles.label}>Who drove it?</Text>
-            <View style={styles.memberRow}>
-              {members.map((m) => (
+            <Text style={styles.label}>Car color{color ? ` — ${color}` : ''}</Text>
+            <View style={styles.colorRow}>
+              {CAR_COLORS.map((c) => (
                 <Pressable
-                  key={m.id}
-                  onPress={() => setSelectedMemberId(m.id)}
-                  style={[styles.memberChip, m.id === effectiveMemberId && styles.memberChipSelected]}
-                >
-                  <Text
-                    style={[
-                      styles.memberChipText,
-                      m.id === effectiveMemberId && styles.memberChipTextSelected,
-                    ]}
-                  >
-                    {m.display_name}
-                  </Text>
+                  key={c.name}
+                  onPress={() => setColor(c.name)}
+                  accessibilityLabel={c.name}
+                  style={[styles.swatch, { backgroundColor: c.hex }, c.hex === '#FFFFFF' && styles.swatchOutline, color === c.name && styles.swatchSelected]}
+                />
+              ))}
+            </View>
+            <Text style={styles.label}>Status</Text>
+            <View style={styles.statusRow}>
+              {STATUS_OPTIONS.map((opt) => (
+                <Pressable key={opt.value} onPress={() => setStatus(opt.value)} style={[styles.statusPill, status === opt.value && styles.statusPillActive]}>
+                  <MaterialCommunityIcons name={opt.icon} size={16} color={status === opt.value ? '#166534' : '#6B7280'} />
+                  <Text style={[styles.statusPillText, status === opt.value && styles.statusPillTextActive]}>{opt.label}</Text>
                 </Pressable>
               ))}
             </View>
+            <Pressable style={styles.searchPill} onPress={handleSearchForMyCar}>
+              <MaterialCommunityIcons name="magnify" size={15} color="#B45309" />
+              <Text style={styles.searchPillText}>Don&apos;t have a photo? Search for my car</Text>
+            </Pressable>
+            <Text style={styles.searchHint}>Opens a Google Images search in your browser — save a photo you like, then upload it above.</Text>
+            <Text style={styles.label}>Fun fact (optional)</Text>
+            <TextInput style={styles.input} value={funFact} onChangeText={setFunFact} placeholder="A quirky detail about this car" />
           </>
         )}
-
-        <Text style={styles.label}>Car color{color ? ` — ${color}` : ''}</Text>
-        <View style={styles.colorRow}>
-          {CAR_COLORS.map((c) => (
-            <Pressable
-              key={c.name}
-              onPress={() => setColor(c.name)}
-              accessibilityLabel={c.name}
-              style={[
-                styles.swatch,
-                { backgroundColor: c.hex },
-                c.hex === '#FFFFFF' && styles.swatchOutline,
-                color === c.name && styles.swatchSelected,
-              ]}
-            />
-          ))}
-        </View>
-
-        <Text style={styles.label}>Photo</Text>
-        {previewPhotoUri ? (
-          <Image source={{ uri: previewPhotoUri }} style={styles.photoPreview} />
-        ) : (
-          <Pressable style={[styles.photoPreview, styles.photoFallback]} onPress={pickPhoto}>
-            <MaterialCommunityIcons name="image-outline" size={28} color="#9CA3AF" />
-            <Text style={styles.photoFallbackText}>Upload from photos</Text>
-          </Pressable>
-        )}
-        <View style={styles.photoActionsRow}>
-          <Pressable style={styles.photoActionButton} onPress={pickPhoto}>
-            <Text style={styles.photoActionText}>{photoUri ? 'Change photo' : 'Upload from photos'}</Text>
-          </Pressable>
-        </View>
-        <Pressable style={styles.searchPill} onPress={handleSearchForMyCar}>
-          <MaterialCommunityIcons name="magnify" size={15} color="#B45309" />
-          <Text style={styles.searchPillText}>Don't have a photo? Search for my car</Text>
-        </Pressable>
-        <Text style={styles.searchHint}>
-          Opens a Google Images search in your browser — save a photo you like, then use "Upload from photos" above.
-        </Text>
-
-        <Text style={styles.label}>The story</Text>
-        <TextInput
-          style={[styles.input, styles.storyInput]}
-          value={memories}
-          onChangeText={setMemories}
-          placeholder="Share a memory about this car..."
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-        />
-
-        <Text style={styles.label}>Fun fact (optional)</Text>
-        <TextInput
-          style={styles.input}
-          value={funFact}
-          onChangeText={setFunFact}
-          placeholder="A quirky detail about this car"
-        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -412,6 +434,15 @@ export default function AddCarScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  successScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#EEF4FF' },
+  successTitle: { fontSize: 24, fontWeight: '800', textAlign: 'center', color: '#0F172A', marginTop: 20 },
+  successCar: { fontSize: 18, fontWeight: '700', color: '#1D4ED8', marginTop: 18, textAlign: 'center' },
+  successDriver: { fontSize: 14, color: '#64748B', marginTop: 6, marginBottom: 24 },
+  primarySuccessButton: { width: '100%', backgroundColor: '#1D4ED8', borderRadius: 10, padding: 16, alignItems: 'center' },
+  secondarySuccessButton: { width: '100%', padding: 14, alignItems: 'center', marginTop: 8 },
+  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  secondaryButtonText: { color: '#1D4ED8', fontSize: 15, fontWeight: '600' },
+  backLink: { color: '#64748B', marginTop: 14 },
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -517,4 +548,14 @@ const styles = StyleSheet.create({
   searchPillText: { color: '#B45309', fontWeight: '600', fontSize: 13 },
   searchHint: { fontSize: 11, color: '#999', marginTop: 6, fontStyle: 'italic' },
   storyInput: { minHeight: 90 },
+  moreDetailsToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    marginTop: 20,
+    paddingVertical: 14,
+  },
+  moreDetailsText: { color: '#1D4ED8', fontSize: 15, fontWeight: '700' },
 });

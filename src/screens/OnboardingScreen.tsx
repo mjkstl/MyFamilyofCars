@@ -84,7 +84,7 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
       <SafeAreaView style={styles.container}>
         <AppLogoHeader compact />
         <Pressable style={styles.primaryButton} onPress={() => goToMode('create')}>
-          <Text style={styles.primaryButtonText}>Start a new family</Text>
+          <Text style={styles.primaryButtonText}>Create family</Text>
         </Pressable>
         <Pressable style={styles.secondaryButton} onPress={() => goToMode('join')}>
           <Text style={styles.secondaryButtonText}>Join with an invite code</Text>
@@ -98,6 +98,9 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
       <SafeAreaView style={styles.container}>
         <AppLogoHeader compact />
         <Text style={styles.title}>Start your family</Text>
+        <Text style={styles.subtitle}>
+          Save the cars your family has loved—and the stories that go with them.
+        </Text>
 
         <Pressable style={styles.avatarPicker} onPress={pickAvatar}>
           {avatarUri ? (
@@ -109,11 +112,13 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
 
         <TextInput
           style={styles.input}
+          accessibilityLabel="Family name"
           placeholder="Family name (e.g. The Keegans)"
           value={familyName}
           onChangeText={setFamilyName}
         />
-        <TextInput style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
+        <TextInput accessibilityLabel="Your name" style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
+        <Text style={styles.reassurance}>Private by default. You choose who can join.</Text>
         {formError ? (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>{formError}</Text>
@@ -159,6 +164,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12, backgroundColor: '#EEF4FF' },
   title: { fontSize: 26, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
   subtitle: { fontSize: 15, color: '#666', textAlign: 'center', marginBottom: 20 },
+  reassurance: { color: '#64748B', fontSize: 13, textAlign: 'center', marginTop: 2 },
   avatarPicker: {
     width: 96,
     height: 96,
