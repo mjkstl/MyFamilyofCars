@@ -12,6 +12,8 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useFamily } from '@/hooks/useFamily';
 
+const logo = require('../../assets/logo.png');
+
 type Mode = 'choose' | 'create' | 'join';
 
 export default function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
@@ -96,6 +98,7 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
   if (mode === 'create') {
     return (
       <SafeAreaView style={styles.container}>
+        <Image source={logo} style={styles.createLogo} resizeMode="contain" accessibilityLabel="My Family of Cars logo" />
         <Text style={styles.title}>Start your family</Text>
 
         <Pressable style={styles.avatarPicker} onPress={pickAvatar}>
@@ -155,7 +158,8 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12 },
+  container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12, backgroundColor: '#EEF4FF' },
+  createLogo: { width: 170, height: 170, alignSelf: 'center', marginBottom: 4 },
   title: { fontSize: 26, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
   subtitle: { fontSize: 15, color: '#666', textAlign: 'center', marginBottom: 20 },
   avatarPicker: {
@@ -171,7 +175,7 @@ const styles = StyleSheet.create({
   },
   avatarImg: { width: '100%', height: '100%' },
   avatarText: { color: '#4338CA', fontSize: 11, textAlign: 'center', fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 16 },
+  input: { borderWidth: 1, borderColor: '#D5DEEF', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#FFFFFF' },
   primaryButton: { backgroundColor: '#1D4ED8', borderRadius: 10, padding: 16, alignItems: 'center' },
   primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   secondaryButton: { padding: 14, alignItems: 'center' },
