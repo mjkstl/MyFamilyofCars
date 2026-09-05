@@ -12,7 +12,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useFamily } from '@/hooks/useFamily';
@@ -31,8 +31,15 @@ export default function FamilyScreen() {
   // type-checked at the call site below.
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { family, currentMember } = useFamily();
-  const { members, addMemberWithInference, updateMember } = useMembers(family?.id);
-  const { cars: allCars } = useAllFamilyCars(family?.id);
+  const { members, addMemberWithInference, updateMember, refresh: refreshMembers } = useMembers(family?.id);
+  const { cars: allCars, refresh: refreshCars } = useAllFamilyCars(family?.id);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshMembers();
+      refreshCars();
+    }, [refreshMembers, refreshCars])
+  );
 
   const [modalOpen, setModalOpen] = useState(false);
   const [displayName, setDisplayName] = useState('');
