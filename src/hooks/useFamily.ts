@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { ensureAnonymousSession, supabase } from '@/lib/supabase';
 import type { Family, Member } from '@/types/database';
+import { recordReferralAttribution, trackEvent } from '@/services/analytics';
 
 const STORAGE_KEYS = {
   familyId: 'familyofcars.familyId',
@@ -153,6 +154,8 @@ export function useFamily() {
     await AsyncStorage.setItem(STORAGE_KEYS.memberId, member.id);
     if (Platform.OS === 'web') webSessionFamily = { family: family as Family, member: memberWithAvatar };
     setState({ loading: false, family: family as Family, currentMember: memberWithAvatar, error: null });
+    await trackEvent('family_created', {}, family.id);
+    await recordReferralAttribution(family.id);
     return { family: family as Family, member: memberWithAvatar };
   }, []);
 
@@ -203,6 +206,7 @@ export function useFamily() {
     await AsyncStorage.setItem(STORAGE_KEYS.memberId, member.id);
     if (Platform.OS === 'web') webSessionFamily = { family: family as Family, member: member as Member };
     setState({ loading: false, family: family as Family, currentMember: member as Member, error: null });
+    await trackEvent('invite_accepted', {}, family.id);
     return { family: family as Family, member: member as Member };
   }, []);
 

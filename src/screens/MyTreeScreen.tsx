@@ -18,6 +18,7 @@ import CarCard from '@/components/CarCard';
 import type { TreeStackParamList, RootStackParamList } from '@/navigation/RootNavigator';
 import type { CarStatus, Member } from '@/types/database';
 import { CARS_COLLECTION_CONFIG } from '@/config/collectionTypes';
+import { trackEvent } from '@/services/analytics';
 
 // ReorderCars lives on the root stack, one level above this screen's own
 // TreeStack — composing both param lists lets navigation.navigate(...)
@@ -98,6 +99,10 @@ export default function MyTreeScreen() {
       return;
     }
     try {
+      await trackEvent('invite_opened', {}, family.id);
+      if (allCars.some((car) => car.photo_url || car.memories)) {
+        await trackEvent('activation_completed', {}, family.id);
+      }
       setCopied(false);
       setInviteOpen(true);
     } catch (err) {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Car, CarInsert } from '@/types/database';
+import { trackEvent } from '@/services/analytics';
 
 export function useCars(memberId: string | undefined) {
   const [cars, setCars] = useState<Car[]>([]);
@@ -87,6 +88,8 @@ export function useCars(memberId: string | undefined) {
       }
 
       await refresh();
+      await trackEvent('first_car_saved', { has_photo: Boolean(car.photo_url), has_story: Boolean(car.memories) });
+      if (car.memories) await trackEvent('first_story_saved', {});
       return car;
     },
     [memberId, refresh, uploadPhoto, runPhotoQualityCheck]
