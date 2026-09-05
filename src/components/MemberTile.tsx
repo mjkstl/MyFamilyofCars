@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   avatarInitials: { color: '#fff', fontSize: 28, fontWeight: '700' },
   editBadge: { position: 'absolute', right: -4, bottom: 2, width: 28, height: 28, borderRadius: 14, backgroundColor: '#F97316', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
   editBadgeText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  name: { fontSize: 15, fontWeight: '600' },
+  name: { fontFamily: 'Trebuchet MS', fontSize: 15, fontWeight: '600' },
   relationship: { fontSize: 12, color: '#888' },
   carThumbRow: { flexDirection: 'row', gap: 6, marginTop: 10 },
   carThumbColumn: { flexDirection: 'column', gap: 6, marginTop: 10, width: '100%' },

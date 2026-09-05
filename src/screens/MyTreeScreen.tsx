@@ -1,10 +1,9 @@
 import React, { useRef, useState } from 'react';
-import { View, FlatList, StyleSheet, Text, ActivityIndicator, SafeAreaView, Pressable, Alert } from 'react-native';
+import { View, FlatList, StyleSheet, Text, ActivityIndicator, SafeAreaView, Pressable, Alert, Share } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { captureRef } from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useFamily } from '@/hooks/useFamily';
@@ -60,16 +59,34 @@ export default function MyTreeScreen() {
     setSharing(true);
     try {
       const uri = await captureRef(posterRef, { format: 'png', quality: 1 });
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(uri);
-      } else {
-        Alert.alert('Sharing unavailable', 'Sharing isn\u2019t supported on this device/browser.');
-      }
+      await Share.share(
+        {
+          message: `Our family cars on My Family of Cars${family?.name ? ` — ${family.name}` : ''}`,
+          url: uri,
+        },
+        { dialogTitle: 'Share My Family of Cars', subject: 'My Family of Cars' },
+      );
     } catch (err) {
       Alert.alert('Couldn\u2019t create poster', err instanceof Error ? err.message : String(err));
     } finally {
       setSharing(false);
+    }
+  };
+
+  const handleInviteFriends = async () => {
+    if (!family?.invite_code) {
+      Alert.alert('Invite unavailable', 'Your family invite code is not ready yet.');
+      return;
+    }
+    try {
+      await Share.share(
+        {
+          message: `Join my family on My Family of Cars! Use invite code: ${family.invite_code}`,
+        },
+        { dialogTitle: 'Invite my Friends', subject: 'Join My Family of Cars' },
+      );
+    } catch (err) {
+      Alert.alert('Couldn\u2019t share invite', err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -118,6 +135,9 @@ export default function MyTreeScreen() {
               ) : (
                 <Text style={styles.shareButtonText}>Share My Family of Cars</Text>
               )}
+            </Pressable>
+            <Pressable style={styles.shareButton} onPress={handleInviteFriends}>
+              <Text style={styles.shareButtonText}>Invite my Friends</Text>
             </Pressable>
           </>
         }
@@ -175,8 +195,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: 16 },
   row: { justifyContent: 'flex-start', gap: 20 },
-  familyName: { fontSize: 20, fontWeight: '800', textAlign: 'center', marginTop: 14, marginBottom: 10 },
-  shareButton: { backgroundColor: '#1D4ED8', borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 16 },
+  familyName: { fontFamily: 'Trebuchet MS', fontSize: 20, fontWeight: '800', textAlign: 'center', marginTop: 14, marginBottom: 10 },
+  shareButton: { backgroundColor: '#1D4ED8', borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 10 },
   shareButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   empty: { textAlign: 'center', color: '#888', marginTop: 40 },
   offscreen: { position: 'absolute', top: -9999, left: -9999 },

@@ -11,8 +11,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useFamily } from '@/hooks/useFamily';
-
-const logo = require('../../assets/logo.png');
+import AppLogoHeader from '@/components/AppLogoHeader';
 
 type Mode = 'choose' | 'create' | 'join';
 
@@ -98,7 +97,7 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
   if (mode === 'create') {
     return (
       <SafeAreaView style={styles.container}>
-        <Image source={logo} style={styles.createLogo} resizeMode="contain" accessibilityLabel="My Family of Cars logo" />
+        <AppLogoHeader compact />
         <Text style={styles.title}>Start your family</Text>
 
         <Pressable style={styles.avatarPicker} onPress={pickAvatar}>
@@ -159,7 +158,6 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12, backgroundColor: '#EEF4FF' },
-  createLogo: { width: 170, height: 170, alignSelf: 'center', marginBottom: 4 },
   title: { fontSize: 26, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
   subtitle: { fontSize: 15, color: '#666', textAlign: 'center', marginBottom: 20 },
   avatarPicker: {
