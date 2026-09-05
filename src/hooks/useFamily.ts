@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { ensureAnonymousSession, supabase } from '@/lib/supabase';
 import type { Family, Member } from '@/types/database';
@@ -10,6 +11,7 @@ const STORAGE_KEYS = {
 } as const;
 
 const familyResetListeners = new Set<() => void>();
+let webSessionFamily: { family: Family; member: Member } | null = null;
 
 /**
  * Wraps a Supabase/PostgREST error with the real code and details visible,
@@ -45,6 +47,14 @@ export function useFamily() {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
       await ensureAnonymousSession();
+      if (Platform.OS === 'web') {
+        if (webSessionFamily) {
+          setState({ loading: false, family: webSessionFamily.family, currentMember: webSessionFamily.member, error: null });
+        } else {
+          setState({ loading: false, family: null, currentMember: null, error: null });
+        }
+        return;
+      }
       const [familyId, memberId] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.familyId),
         AsyncStorage.getItem(STORAGE_KEYS.memberId),
@@ -141,6 +151,7 @@ export function useFamily() {
 
     await AsyncStorage.setItem(STORAGE_KEYS.familyId, family.id);
     await AsyncStorage.setItem(STORAGE_KEYS.memberId, member.id);
+    if (Platform.OS === 'web') webSessionFamily = { family: family as Family, member: memberWithAvatar };
     setState({ loading: false, family: family as Family, currentMember: memberWithAvatar, error: null });
     return { family: family as Family, member: memberWithAvatar };
   }, []);
@@ -159,6 +170,7 @@ export function useFamily() {
 
   const resetFamily = useCallback(async () => {
     await AsyncStorage.multiRemove([STORAGE_KEYS.familyId, STORAGE_KEYS.memberId]);
+    webSessionFamily = null;
     familyResetListeners.forEach((listener) => listener());
   }, []);
 
@@ -189,6 +201,7 @@ export function useFamily() {
 
     await AsyncStorage.setItem(STORAGE_KEYS.familyId, family.id);
     await AsyncStorage.setItem(STORAGE_KEYS.memberId, member.id);
+    if (Platform.OS === 'web') webSessionFamily = { family: family as Family, member: member as Member };
     setState({ loading: false, family: family as Family, currentMember: member as Member, error: null });
     return { family: family as Family, member: member as Member };
   }, []);

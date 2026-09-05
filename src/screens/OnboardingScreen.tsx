@@ -17,7 +17,7 @@ type Mode = 'choose' | 'create' | 'join';
 
 export default function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
   const { createFamily, joinFamily } = useFamily();
-  const [mode, setMode] = useState<Mode>('choose');
+  const [mode, setMode] = useState<Mode>('create');
   const [name, setName] = useState('');
   const [familyName, setFamilyName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
