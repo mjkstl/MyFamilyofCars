@@ -17,6 +17,7 @@ import FamilyPoster from '@/components/FamilyPoster';
 import CarCard from '@/components/CarCard';
 import type { TreeStackParamList, RootStackParamList } from '@/navigation/RootNavigator';
 import type { CarStatus, Member } from '@/types/database';
+import { CARS_COLLECTION_CONFIG } from '@/config/collectionTypes';
 
 // ReorderCars lives on the root stack, one level above this screen's own
 // TreeStack — composing both param lists lets navigation.navigate(...)
@@ -158,12 +159,7 @@ export default function MyTreeScreen() {
               <View style={styles.collectionSection}>
                 <Text style={styles.collectionTitle}>Collection</Text>
                 <View style={styles.filterRow}>
-                  {([
-                    ['all', 'All'],
-                    ['current', 'Currently Driving'],
-                    ['memory', 'Memories'],
-                    ['dream', 'Dream Cars'],
-                  ] as const).map(([value, label]) => (
+                  {CARS_COLLECTION_CONFIG.filters.map(({ value, label }) => (
                     <Pressable
                       key={value}
                       accessibilityRole="button"

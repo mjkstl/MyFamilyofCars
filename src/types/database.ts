@@ -2,6 +2,46 @@ export type ParentLinkConfidence = 'high' | 'low' | 'manual';
 export type PhotoQualityStatus = 'pending' | 'approved' | 'flagged';
 export type FactType = 'trivia' | 'history' | 'spec';
 export type ShareType = 'invite' | 'poster';
+export type CollectionVisibility = 'private' | 'family';
+
+export interface Collection {
+  id: string;
+  family_id: string;
+  type: string;
+  name: string;
+  visibility: CollectionVisibility;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Item {
+  id: string;
+  collection_id: string;
+  title: string;
+  story: string | null;
+  tags: string[];
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ItemPerson {
+  item_id: string;
+  member_id: string;
+  relationship: string | null;
+  created_at: string;
+}
+
+export interface ItemPhoto {
+  id: string;
+  item_id: string;
+  url: string;
+  caption: string | null;
+  order_index: number;
+  created_at: string;
+}
 
 export interface Family {
   id: string;
@@ -29,6 +69,8 @@ export type CarStatus = 'current' | 'memory' | 'dream';
 export interface Car {
   id: string;
   member_id: string;
+  collection_id: string | null;
+  item_id: string | null;
   make: string;
   model: string;
   year: number;
@@ -44,6 +86,7 @@ export interface Car {
   sold_date: string | null;
   order_index: number;
   created_at: string;
+  updated_at: string;
 }
 
 export interface CarFact {
@@ -93,5 +136,7 @@ export type CarInsert = Pick<Car, 'member_id' | 'make' | 'model' | 'year'> &
       | 'purchase_date'
       | 'sold_date'
       | 'order_index'
+      | 'collection_id'
+      | 'item_id'
     >
   >;

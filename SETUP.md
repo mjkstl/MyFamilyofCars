@@ -44,6 +44,12 @@ sources of cryptic runtime crashes in React Native.
    one shot.
 5. Verify it worked: go to **Table Editor** — you should see `families`,
    `members`, `cars`, `car_facts`, and `family_shares`.
+6. Run the remaining SQL migrations in filename order:
+   `supabase/migrations/0002_car_status_and_fun_fact.sql`, then
+   `supabase/migrations/0003_collections_items_foundation.sql`. The Phase 3
+   migration creates one private Cars collection per family, links legacy cars
+   to generic items, and records the migration result in
+   `collection_migration_runs`. It is additive and safe to rerun.
 
 ---
 
