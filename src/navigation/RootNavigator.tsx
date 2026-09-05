@@ -41,7 +41,7 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 function TreeStackNavigator() {
   return (
-    <TreeStack.Navigator>
+    <TreeStack.Navigator screenOptions={{ headerTitleStyle: { fontFamily: 'Trebuchet MS', fontWeight: '800' } }}>
       <TreeStack.Screen name="TreeHome" component={MyTreeScreen} options={{ title: 'My Tree' }} />
       <TreeStack.Screen
         name="MemberCarousel"
