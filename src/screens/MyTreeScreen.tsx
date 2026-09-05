@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { View, FlatList, StyleSheet, Text, ActivityIndicator, SafeAreaView, Pressable, Alert, Share, TextInput, Modal, Platform } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { captureRef } from 'react-native-view-shot';
@@ -36,7 +36,7 @@ export default function MyTreeScreen() {
   const navigation = useNavigation<Nav>();
   const { family, currentMember } = useFamily();
   const { members, loading, addMemberWithInference, updateMember } = useMembers(family?.id);
-  const { cars: allCars } = useAllFamilyCars(family?.id);
+  const { cars: allCars, refresh: refreshCars } = useAllFamilyCars(family?.id);
   const posterRef = useRef<View>(null);
   const listRef = useRef<FlatList>(null);
   const [sharing, setSharing] = useState(false);
@@ -53,6 +53,12 @@ export default function MyTreeScreen() {
   const [scrollY, setScrollY] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      void refreshCars();
+    }, [refreshCars]),
+  );
 
   const canScrollUp = scrollY > 4;
   const canScrollDown = scrollY + viewportHeight < contentHeight - 4;
@@ -164,7 +170,7 @@ export default function MyTreeScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={styles.safe}>
       <FlatList
         ref={listRef}
         style={{ width: '100%', maxWidth: 480, alignSelf: 'center' }}
@@ -195,6 +201,11 @@ export default function MyTreeScreen() {
               <Text style={styles.shareButtonText}>Invite family</Text>
             </Pressable>
             <Text style={styles.inviteNote}>Invitees can add their cars and memories. Collections remain private by default.</Text>
+            <View style={styles.countRow} accessibilityLabel={`${members.length} family members and ${allCars.length} cars`}>
+              <Text style={styles.countText}>{members.length} {members.length === 1 ? 'Family Member' : 'Family Members'}</Text>
+              <Text style={styles.countDivider}>•</Text>
+              <Text style={styles.countText}>{allCars.length} {allCars.length === 1 ? 'Car' : 'Cars'}</Text>
+            </View>
             {allCars.length > 0 && (
               <View style={styles.collectionSection}>
                 <Text style={styles.collectionTitle}>Collection</Text>
@@ -332,6 +343,7 @@ export default function MyTreeScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  safe: { flex: 1, backgroundColor: '#F8FAFC' },
   list: { padding: 16 },
   row: { justifyContent: 'flex-start', gap: 20 },
   familyName: { fontFamily: 'Trebuchet MS', fontSize: 20, fontWeight: '800', textAlign: 'center', marginTop: 14, marginBottom: 10 },
@@ -340,6 +352,9 @@ const styles = StyleSheet.create({
   shareButton: { backgroundColor: '#1D4ED8', borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 10 },
   shareButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   inviteNote: { color: '#64748B', fontSize: 12, lineHeight: 17, textAlign: 'center', marginBottom: 14 },
+  countRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginBottom: 14 },
+  countText: { color: '#0F766E', fontSize: 14, fontWeight: '800' },
+  countDivider: { color: '#94A3B8' },
   collectionSection: { borderTopWidth: 1, borderTopColor: '#E2E8F0', paddingTop: 14, marginBottom: 14 },
   collectionTitle: { fontSize: 18, fontWeight: '800', marginBottom: 10 },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

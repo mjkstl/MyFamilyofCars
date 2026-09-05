@@ -12,6 +12,7 @@ import {
   SafeAreaView,
   Linking,
   Share,
+  Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -52,6 +53,11 @@ function deriveEra(yearStr: string): number | null {
   return Math.floor(y / 10) * 10;
 }
 
+function formatOrdinal(value: number): string {
+  const suffix = value % 100 >= 11 && value % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[value % 10] ?? 'th';
+  return `${value}${suffix}`;
+}
+
 export default function AddCarScreen() {
   const navigation = useNavigation();
   const route = useRoute<AddCarRouteProp>();
@@ -81,6 +87,7 @@ export default function AddCarScreen() {
   const { cars: familyCars, loading: familyCarsLoading } = useAllFamilyCars(family?.id);
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(false);
   const [savedCar, setSavedCar] = useState<FamilyCar | null>(null);
+  const [savedCarNumber, setSavedCarNumber] = useState(1);
 
   const [nickname, setNickname] = useState(editingCar?.nickname ?? '');
   const [trim, setTrim] = useState(editingCar?.trim ?? '');
@@ -137,13 +144,18 @@ export default function AddCarScreen() {
   // phone, and upload it with the button above. Deliberately NOT an
   // automated stock-photo API — that's on hold pending a pricing
   // decision, so this is the zero-cost, zero-dependency stand-in.
-  const handleSearchForMyCar = () => {
-    if (!make.trim() || !model.trim()) {
-      Alert.alert('A couple details first', 'Enter make and model, then we can search for photos.');
-      return;
+  const handleSearchForMyCar = async () => {
+    const query = encodeURIComponent(`${year} ${make} ${model}`.trim() || 'car');
+    const url = `https://www.google.com/search?tbm=isch&q=${query}`;
+    try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        await Linking.openURL(url);
+      }
+    } catch (err) {
+      Alert.alert('Couldn’t open image search', err instanceof Error ? err.message : String(err));
     }
-    const query = encodeURIComponent(`${year} ${make} ${model}`.trim());
-    Linking.openURL(`https://www.google.com/search?tbm=isch&q=${query}`);
   };
 
   const reset = () => {
@@ -200,6 +212,7 @@ export default function AddCarScreen() {
           setSaving(false);
           return;
         }
+        setSavedCarNumber(familyCars.length + 1);
         reset();
       }
 
@@ -228,7 +241,7 @@ export default function AddCarScreen() {
     return (
       <SafeAreaView style={styles.successScreen}>
         <AppLogoHeader compact />
-        <Text style={styles.successTitle}>Your family’s first car has a home.</Text>
+        <Text style={styles.successTitle}>Your family’s {formatOrdinal(savedCarNumber)} car has a home.</Text>
         <Text style={styles.successCar}>
           {savedCar.year} {savedCar.make} {savedCar.model}
         </Text>
@@ -255,7 +268,7 @@ export default function AddCarScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={styles.safe}>
       <View style={styles.headerBar}>
         <Pressable
           accessibilityLabel="Close"
@@ -277,7 +290,7 @@ export default function AddCarScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.form} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>Photo (optional)</Text>
         {previewPhotoUri ? (
           <Image source={{ uri: previewPhotoUri }} style={styles.photoPreview} />
@@ -442,7 +455,9 @@ export default function AddCarScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  successScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#EEF4FF' },
+  safe: { flex: 1, backgroundColor: '#F8FAFC' },
+  form: { backgroundColor: '#F8FAFC' },
+  successScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#F8FAFC' },
   successTitle: { fontSize: 24, fontWeight: '800', textAlign: 'center', color: '#0F172A', marginTop: 20 },
   successCar: { fontSize: 18, fontWeight: '700', color: '#1D4ED8', marginTop: 18, textAlign: 'center' },
   successDriver: { fontSize: 14, color: '#64748B', marginTop: 6, marginBottom: 24 },
@@ -459,6 +474,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
+    backgroundColor: '#F8FAFC',
   },
   closeButton: {
     width: 36,
@@ -481,7 +497,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveChipText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  container: { padding: 20, gap: 4 },
+  container: { padding: 20, gap: 4, backgroundColor: '#F8FAFC' },
   label: { fontSize: 13, fontWeight: '700', color: '#555', marginTop: 16, marginBottom: 6 },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12, fontSize: 16, backgroundColor: '#fff' },
   suggestionBox: { borderWidth: 1, borderColor: '#eee', borderRadius: 8, marginTop: 4, maxHeight: 180 },

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { useFamily } from '@/hooks/useFamily';
 import { useAllFamilyCars, type FamilyCar } from '@/hooks/useAllFamilyCars';
 import StoryCarCard from '@/components/StoryCarCard';
@@ -18,13 +19,19 @@ export default function StorybookScreen() {
   const navigation = useNavigation<StoryNav>();
   const treeNavigation = navigation;
   const { family } = useFamily();
-  const { cars, loading } = useAllFamilyCars(family?.id);
+  const { cars, loading, refresh: refreshCars } = useAllFamilyCars(family?.id);
   const [sortMode, setSortMode] = useState<SortMode>('added');
   const [interestOpen, setInterestOpen] = useState(false);
 
   React.useEffect(() => {
     if (family?.id) void trackEvent('storybook_opened', {}, family.id);
   }, [family?.id]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      void refreshCars();
+    }, [refreshCars]),
+  );
 
   const sortedCars = useMemo(() => {
     const result = [...cars];

@@ -63,7 +63,12 @@ export default function KeepsakeInterestModal({
             </>
           ) : (
             <>
-              <Text style={styles.title}>Create a keepsake</Text>
+              <View style={styles.titleRow}>
+                <Text style={styles.title}>Create a keepsake</Text>
+                <Pressable accessibilityLabel="Close keepsake form" onPress={onClose} style={styles.closeButton}>
+                  <Text style={styles.closeText}>×</Text>
+                </Pressable>
+              </View>
               <Text style={styles.body}>Turn your family’s cars and stories into a printed book.</Text>
               <Text style={styles.label}>Format</Text>
               <View style={styles.options}>
@@ -71,7 +76,9 @@ export default function KeepsakeInterestModal({
                 <Pressable style={[styles.option, format === 'poster' && styles.optionActive]} onPress={() => setFormat('poster')}><Text style={format === 'poster' ? styles.optionTextActive : styles.optionText}>Poster</Text></Pressable>
                 <Pressable style={[styles.option, format === 'cards' && styles.optionActive]} onPress={() => setFormat('cards')}><Text style={format === 'cards' ? styles.optionTextActive : styles.optionText}>Individual car cards</Text></Pressable>
               </View>
+              <Text style={styles.label}>Quantity</Text>
               <TextInput accessibilityLabel="Optional number of copies" value={copies} onChangeText={setCopies} keyboardType="number-pad" placeholder="Number of copies (optional)" style={styles.input} />
+              <Text style={styles.label}>Email</Text>
               <TextInput accessibilityLabel="Email required for notification" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholder="Email for availability updates" style={styles.input} />
               <Pressable style={styles.consent} onPress={() => setMarketingOptIn((value) => !value)}><Text style={styles.checkbox}>{marketingOptIn ? '☑' : '☐'}</Text><Text style={styles.consentText}>I agree to be contacted about keepsakes.</Text></Pressable>
               <Pressable style={styles.primary} onPress={submit} disabled={saving}>{saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Let me know</Text>}</Pressable>
@@ -88,6 +95,9 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'center', padding: 20 },
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 22 },
   title: { color: '#0F172A', fontSize: 22, fontWeight: '900' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  closeButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  closeText: { color: '#475569', fontSize: 28, lineHeight: 28 },
   body: { color: '#475569', lineHeight: 20, marginTop: 8 },
   label: { color: '#334155', fontWeight: '800', marginTop: 18, marginBottom: 8 },
   options: { gap: 7 },
