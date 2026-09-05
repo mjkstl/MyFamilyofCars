@@ -51,7 +51,9 @@ sources of cryptic runtime crashes in React Native.
    to generic items, and records the migration result in
    `collection_migration_runs`. It is additive and safe to rerun.
 7. Apply `supabase/migrations/0004_keepsake_interest_attribution_analytics.sql`
-   to enable the private keepsake interest form and first-party analytics.
+   to enable the private keepsake interest form and first-party analytics,
+   then `supabase/migrations/0005_reassignment_cleanup.sql` to keep generic
+   item relationships aligned when a car is reassigned.
    This migration does not add payment, fulfillment, shipping, or public
    collection access.
 

@@ -84,7 +84,7 @@ export default function AddCarScreen() {
   );
 
   const { addCar, updateCar } = useCars(effectiveMemberId);
-  const { cars: familyCars, loading: familyCarsLoading } = useAllFamilyCars(family?.id);
+  const { cars: familyCars } = useAllFamilyCars(family?.id);
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(false);
   const [savedCar, setSavedCar] = useState<FamilyCar | null>(null);
   const [savedCarNumber, setSavedCarNumber] = useState(1);
@@ -207,13 +207,10 @@ export default function AddCarScreen() {
         );
       } else {
         const addedCar = await addCar(carDetails, photoUri ?? undefined);
-        if (!familyCarsLoading && familyCars.length === 0) {
-          setSavedCar({ ...(addedCar as Car), member_display_name: selectedMember?.display_name ?? 'Family', photos: [] });
-          setSaving(false);
-          return;
-        }
         setSavedCarNumber(familyCars.length + 1);
-        reset();
+        setSavedCar({ ...(addedCar as Car), member_display_name: selectedMember?.display_name ?? 'Family', photos: [] });
+        setSaving(false);
+        return;
       }
 
       if (navigation.canGoBack()) {

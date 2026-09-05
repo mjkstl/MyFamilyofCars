@@ -31,13 +31,18 @@ export default function KeepsakeInterestModal({
       Alert.alert('Please choose', 'Check the consent box so we can contact you about keepsakes.');
       return;
     }
+    const normalizedCopies = copies.trim();
+    if (normalizedCopies && (!/^\d+$/.test(normalizedCopies) || Number(normalizedCopies) < 1)) {
+      Alert.alert('Check quantity', 'Enter a whole number of copies greater than zero.');
+      return;
+    }
     setSaving(true);
     try {
       const { error } = await supabase.from('keepsake_interest').insert({
         family_id: familyId,
         product_id: HARDCOVER_FAMILY_BOOK.id,
         format,
-        copies_requested: copies.trim() ? Number(copies) : null,
+        copies_requested: normalizedCopies ? Number(normalizedCopies) : null,
         email: normalizedEmail,
         marketing_opt_in: true,
       });
