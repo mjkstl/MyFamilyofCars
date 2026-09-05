@@ -12,6 +12,7 @@ import { useMembers } from '@/hooks/useMembers';
 import { useAllFamilyCars } from '@/hooks/useAllFamilyCars';
 import MemberTile from '@/components/MemberTile';
 import MemberEditModal from '@/components/MemberEditModal';
+import AddFamilyMemberModal from '@/components/AddFamilyMemberModal';
 import AppLogoHeader from '@/components/AppLogoHeader';
 import FamilyPoster from '@/components/FamilyPoster';
 import CarCard from '@/components/CarCard';
@@ -33,8 +34,8 @@ const SCROLL_PAGE_SIZE = 420;
 
 export default function MyTreeScreen() {
   const navigation = useNavigation<Nav>();
-  const { family } = useFamily();
-  const { members, loading, updateMember } = useMembers(family?.id);
+  const { family, currentMember } = useFamily();
+  const { members, loading, addMemberWithInference, updateMember } = useMembers(family?.id);
   const { cars: allCars } = useAllFamilyCars(family?.id);
   const posterRef = useRef<View>(null);
   const listRef = useRef<FlatList>(null);
@@ -45,6 +46,8 @@ export default function MyTreeScreen() {
   const [search, setSearch] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const [savingNewMember, setSavingNewMember] = useState(false);
 
   // Drives the up/down scroll-arrow pair below.
   const [scrollY, setScrollY] = useState(0);
@@ -135,6 +138,23 @@ export default function MyTreeScreen() {
     }
   };
 
+  const handleAddMember = async (displayName: string, relationship: string) => {
+    if (!family || !currentMember) return;
+    setSavingNewMember(true);
+    try {
+      await addMemberWithInference({
+        displayName,
+        relationshipLabel: relationship,
+        enteredByMemberId: currentMember.id,
+      });
+      setAddMemberOpen(false);
+    } catch (err) {
+      Alert.alert('Couldn’t add member', err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingNewMember(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -161,6 +181,9 @@ export default function MyTreeScreen() {
           <>
             <AppLogoHeader />
             <Text style={styles.familyName}>{family?.name}</Text>
+            <Pressable style={styles.addMemberButton} onPress={() => setAddMemberOpen(true)}>
+              <Text style={styles.addMemberText}>Add family member</Text>
+            </Pressable>
             <Pressable style={styles.shareButton} onPress={handleSharePoster} disabled={sharing}>
               {sharing ? (
                 <ActivityIndicator color="#fff" />
@@ -261,6 +284,12 @@ export default function MyTreeScreen() {
         onSave={handleSaveMember}
         saving={savingMember}
       />
+      <AddFamilyMemberModal
+        visible={addMemberOpen}
+        saving={savingNewMember}
+        onClose={() => setAddMemberOpen(false)}
+        onSave={handleAddMember}
+      />
 
       <Modal visible={inviteOpen} transparent animationType="fade" onRequestClose={() => setInviteOpen(false)}>
         <View style={styles.modalOverlay}>
@@ -306,6 +335,8 @@ const styles = StyleSheet.create({
   list: { padding: 16 },
   row: { justifyContent: 'flex-start', gap: 20 },
   familyName: { fontFamily: 'Trebuchet MS', fontSize: 20, fontWeight: '800', textAlign: 'center', marginTop: 14, marginBottom: 10 },
+  addMemberButton: { alignSelf: 'center', borderWidth: 1, borderColor: '#0F766E', borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, marginBottom: 10 },
+  addMemberText: { color: '#0F766E', fontWeight: '800' },
   shareButton: { backgroundColor: '#1D4ED8', borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 10 },
   shareButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   inviteNote: { color: '#64748B', fontSize: 12, lineHeight: 17, textAlign: 'center', marginBottom: 14 },

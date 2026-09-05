@@ -22,8 +22,13 @@ export default function KeepsakeInterestModal({
 
   const submit = async () => {
     if (!familyId) return;
-    if (email.trim() && marketingOptIn === false) {
-      Alert.alert('Please choose', 'Check the communication consent box if you want us to contact you by email.');
+    const normalizedEmail = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      Alert.alert('Email required', 'Enter a valid email so we can notify you when keepsakes are ready.');
+      return;
+    }
+    if (!marketingOptIn) {
+      Alert.alert('Please choose', 'Check the consent box so we can contact you about keepsakes.');
       return;
     }
     setSaving(true);
@@ -33,11 +38,11 @@ export default function KeepsakeInterestModal({
         product_id: HARDCOVER_FAMILY_BOOK.id,
         format,
         copies_requested: copies.trim() ? Number(copies) : null,
-        email: email.trim() || null,
-        marketing_opt_in: Boolean(email.trim() && marketingOptIn),
+        email: normalizedEmail,
+        marketing_opt_in: true,
       });
       if (error) throw error;
-      await trackEvent('keepsake_interest_submitted', { product_id: HARDCOVER_FAMILY_BOOK.id, format, has_email: Boolean(email.trim()), marketing_opt_in: Boolean(email.trim() && marketingOptIn) }, familyId);
+      await trackEvent('keepsake_interest_submitted', { product_id: HARDCOVER_FAMILY_BOOK.id, format, has_email: true, marketing_opt_in: true }, familyId);
       setSubmitted(true);
     } catch (error) {
       Alert.alert('Couldn’t save your interest', error instanceof Error ? error.message : String(error));
@@ -67,8 +72,8 @@ export default function KeepsakeInterestModal({
                 <Pressable style={[styles.option, format === 'cards' && styles.optionActive]} onPress={() => setFormat('cards')}><Text style={format === 'cards' ? styles.optionTextActive : styles.optionText}>Individual car cards</Text></Pressable>
               </View>
               <TextInput accessibilityLabel="Optional number of copies" value={copies} onChangeText={setCopies} keyboardType="number-pad" placeholder="Number of copies (optional)" style={styles.input} />
-              <TextInput accessibilityLabel="Optional email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholder="Email (optional)" style={styles.input} />
-              {email.trim() ? <Pressable style={styles.consent} onPress={() => setMarketingOptIn((value) => !value)}><Text style={styles.checkbox}>{marketingOptIn ? '☑' : '☐'}</Text><Text style={styles.consentText}>I agree to be contacted about keepsakes.</Text></Pressable> : null}
+              <TextInput accessibilityLabel="Email required for notification" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholder="Email for availability updates" style={styles.input} />
+              <Pressable style={styles.consent} onPress={() => setMarketingOptIn((value) => !value)}><Text style={styles.checkbox}>{marketingOptIn ? '☑' : '☐'}</Text><Text style={styles.consentText}>I agree to be contacted about keepsakes.</Text></Pressable>
               <Pressable style={styles.primary} onPress={submit} disabled={saving}>{saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Let me know</Text>}</Pressable>
               <Pressable onPress={onClose}><Text style={styles.cancel}>Not now</Text></Pressable>
             </>

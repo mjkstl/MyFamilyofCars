@@ -83,6 +83,7 @@ export default function AddCarScreen() {
   const [savedCar, setSavedCar] = useState<FamilyCar | null>(null);
 
   const [nickname, setNickname] = useState(editingCar?.nickname ?? '');
+  const [trim, setTrim] = useState(editingCar?.trim ?? '');
   const [make, setMake] = useState(editingCar?.make ?? '');
   const [makeSuggestions, setMakeSuggestions] = useState<string[]>([]);
   const [model, setModel] = useState(editingCar?.model ?? '');
@@ -147,6 +148,7 @@ export default function AddCarScreen() {
 
   const reset = () => {
     setNickname('');
+    setTrim('');
     setMake('');
     setModel('');
     setYear(String(CURRENT_YEAR));
@@ -174,6 +176,7 @@ export default function AddCarScreen() {
     try {
       const carDetails = {
         nickname: nickname.trim(),
+        trim: trim.trim() || undefined,
         make: make.trim(),
         model: model.trim(),
         year: yearNum,
@@ -409,6 +412,14 @@ export default function AddCarScreen() {
                 />
               ))}
             </View>
+            <Text style={styles.label}>Trim (optional)</Text>
+            <TextInput
+              accessibilityLabel="Car trim"
+              style={styles.input}
+              value={trim}
+              onChangeText={setTrim}
+              placeholder="e.g. Sport, Touring, Limited"
+            />
             <Text style={styles.label}>Status</Text>
             <View style={styles.statusRow}>
               {STATUS_OPTIONS.map((opt) => (
