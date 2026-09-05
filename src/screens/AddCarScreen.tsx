@@ -287,9 +287,11 @@ export default function AddCarScreen() {
             <Text style={styles.photoFallbackText}>Add a photo</Text>
           </Pressable>
         )}
-        <Pressable style={styles.photoActionButton} onPress={pickPhoto}>
-          <Text style={styles.photoActionText}>{photoUri ? 'Change photo' : 'Add photo'}</Text>
+        <Pressable style={styles.searchPill} onPress={handleSearchForMyCar}>
+          <MaterialCommunityIcons name="magnify" size={15} color="#B45309" />
+          <Text style={styles.searchPillText}>Don&apos;t have a photo? Search for my car</Text>
         </Pressable>
+        <Text style={styles.searchHint}>Opens a Google Images search in your browser — save a photo you like, then upload it above.</Text>
 
         <View style={styles.sideBySideRow}>
           <View style={styles.sideBySideField}>
@@ -429,11 +431,6 @@ export default function AddCarScreen() {
                 </Pressable>
               ))}
             </View>
-            <Pressable style={styles.searchPill} onPress={handleSearchForMyCar}>
-              <MaterialCommunityIcons name="magnify" size={15} color="#B45309" />
-              <Text style={styles.searchPillText}>Don&apos;t have a photo? Search for my car</Text>
-            </Pressable>
-            <Text style={styles.searchHint}>Opens a Google Images search in your browser — save a photo you like, then upload it above.</Text>
             <Text style={styles.label}>Fun fact (optional)</Text>
             <TextInput style={styles.input} value={funFact} onChangeText={setFunFact} placeholder="A quirky detail about this car" />
           </>
