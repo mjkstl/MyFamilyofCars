@@ -10,7 +10,6 @@ import OnboardingScreen from '@/screens/OnboardingScreen';
 import MyTreeScreen from '@/screens/MyTreeScreen';
 import MemberEditScreen from '@/screens/MemberEditScreen';
 import AddCarScreen from '@/screens/AddCarScreen';
-import FamilyScreen from '@/screens/FamilyScreen';
 import CarReorderScreen from '@/screens/CarReorderScreen';
 import type { Car, Member } from '@/types/database';
 
@@ -42,7 +41,7 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 function TreeStackNavigator() {
   return (
     <TreeStack.Navigator screenOptions={{ headerTitleStyle: { fontFamily: 'Trebuchet MS', fontWeight: '800' } }}>
-      <TreeStack.Screen name="TreeHome" component={MyTreeScreen} options={{ title: 'My Tree' }} />
+      <TreeStack.Screen name="TreeHome" component={MyTreeScreen} options={{ title: 'Family Tree' }} />
       <TreeStack.Screen
         name="MemberCarousel"
         component={MemberEditScreen}
@@ -68,7 +67,7 @@ function MainTabs({ initialRouteName }: { initialRouteName: string }) {
         name="Tree"
         component={TreeStackNavigator}
         options={{
-          tabBarLabel: 'My Tree',
+          tabBarLabel: 'Family Tree',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="family-tree" color={color} size={size} />
           ),
@@ -79,16 +78,6 @@ function MainTabs({ initialRouteName }: { initialRouteName: string }) {
         component={AddCarScreen}
         options={{
           tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="car" color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
-        name="Family"
-        component={FamilyScreen}
-        options={{
-          tabBarLabel: 'Family Tree',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="account-group" color={color} size={size} />
-          ),
         }}
       />
     </Tab.Navigator>

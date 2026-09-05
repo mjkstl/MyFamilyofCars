@@ -154,12 +154,8 @@ export default function AddCarScreen() {
   };
 
   const handleSave = async () => {
-    if (!nickname.trim()) {
-      Alert.alert('Missing info', 'Give this car a nickname.');
-      return;
-    }
     if (!make.trim() || !model.trim() || !year.trim()) {
-      Alert.alert('Missing info', 'Make, model, and year are required.');
+      Alert.alert('Missing info', 'Make, model, and year are required to save the car.');
       return;
     }
     const yearNum = Number(year);
@@ -235,7 +231,7 @@ export default function AddCarScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.label}>Nickname *</Text>
+        <Text style={styles.label}>Nickname (optional)</Text>
         <TextInput style={styles.input} value={nickname} onChangeText={setNickname} placeholder="e.g. Old Betsy" />
 
         <View style={styles.sideBySideRow}>

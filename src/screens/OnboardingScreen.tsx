@@ -82,8 +82,7 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
   if (mode === 'choose') {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>My Family of Cars</Text>
-        <Text style={styles.subtitle}>Every car your family has ever owned, in one place.</Text>
+        <AppLogoHeader compact />
         <Pressable style={styles.primaryButton} onPress={() => goToMode('create')}>
           <Text style={styles.primaryButtonText}>Start a new family</Text>
         </Pressable>
