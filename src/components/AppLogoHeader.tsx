@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 
 const logo = require('../../assets/logo.png');
 
@@ -12,9 +12,6 @@ export default function AppLogoHeader({ compact = false }: { compact?: boolean }
         resizeMode="contain"
         accessibilityLabel="My Family of Cars logo"
       />
-      <Text style={styles.banner}>
-        Create your family, add your wheels, and share with your friends & family to create your Family of Cars!
-      </Text>
     </View>
   );
 }
@@ -32,5 +29,4 @@ const styles = StyleSheet.create({
   logo: { width: 210, height: 205, maxWidth: '92%' },
   compactHeader: { minHeight: 0, paddingVertical: 0, borderBottomWidth: 0, backgroundColor: 'transparent' },
   compactLogo: { width: 170, height: 170 },
-  banner: { maxWidth: 720, paddingHorizontal: 20, color: '#0F172A', fontSize: 13, lineHeight: 18, fontWeight: '700', textAlign: 'center' },
 });
