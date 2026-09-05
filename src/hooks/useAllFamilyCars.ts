@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Car, Member } from '@/types/database';
+import type { Car, ItemPhoto, Member } from '@/types/database';
 
 export interface FamilyCar extends Car {
   member_display_name: string;
+  photos: ItemPhoto[];
 }
 
 /**
@@ -36,7 +37,30 @@ export function useAllFamilyCars(familyId: string | undefined) {
       .order('created_at', { ascending: true });
 
     if (!error && data) {
-      setCars(data.map((car) => ({ ...(car as Car), member_display_name: memberNames.get(car.member_id) ?? 'Family' })));
+      const itemIds = data.map((car) => car.item_id).filter((itemId): itemId is string => !!itemId);
+      const { data: photoRows } = itemIds.length
+        ? await supabase.from('item_photos').select('*').in('item_id', itemIds).order('order_index', { ascending: true })
+        : { data: [] };
+      const photosByItem = new Map<string, ItemPhoto[]>();
+      (photoRows ?? []).forEach((photo) => {
+        const current = photosByItem.get(photo.item_id) ?? [];
+        current.push(photo as ItemPhoto);
+        photosByItem.set(photo.item_id, current);
+      });
+      setCars(data.map((car) => ({
+        ...(car as Car),
+        member_display_name: memberNames.get(car.member_id) ?? 'Family',
+        photos: photosByItem.get(car.item_id ?? '') ?? (
+          car.photo_url ? [{
+            id: `${car.id}-legacy-photo`,
+            item_id: car.item_id ?? '',
+            url: car.photo_url,
+            caption: null,
+            order_index: 0,
+            created_at: car.created_at,
+          }] : []
+        ),
+      })));
     }
     setLoading(false);
   }, [familyId]);

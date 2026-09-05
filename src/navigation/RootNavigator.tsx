@@ -11,6 +11,8 @@ import MyTreeScreen from '@/screens/MyTreeScreen';
 import MemberEditScreen from '@/screens/MemberEditScreen';
 import AddCarScreen from '@/screens/AddCarScreen';
 import CarReorderScreen from '@/screens/CarReorderScreen';
+import StorybookScreen from '@/screens/StorybookScreen';
+import PrintPreviewScreen from '@/screens/PrintPreviewScreen';
 import type { Car, Member } from '@/types/database';
 
 export type TreeStackParamList = {
@@ -19,6 +21,13 @@ export type TreeStackParamList = {
   // Reached via the "+" (add) or edit link (edit) on a member's carousel.
   // When `car` is present, AddCarScreen renders in edit mode for that
   // existing car instead of creating a new one.
+  AddCarForMember: { member: Member; car?: Car };
+};
+
+export type StoryStackParamList = {
+  Storybook: undefined;
+  PrintPreview: undefined;
+  MemberCarousel: { member: Member };
   AddCarForMember: { member: Member; car?: Car };
 };
 
@@ -37,6 +46,7 @@ export type RootStackParamList = {
 const Tab = createBottomTabNavigator();
 const TreeStack = createNativeStackNavigator<TreeStackParamList>();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
+const StoryStack = createNativeStackNavigator<StoryStackParamList>();
 
 function TreeStackNavigator() {
   return (
@@ -74,6 +84,14 @@ function MainTabs({ initialRouteName }: { initialRouteName: string }) {
         }}
       />
       <Tab.Screen
+        name="Story"
+        component={StoryStackNavigator}
+        options={{
+          tabBarLabel: 'Our Story',
+          tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="book-open-page-variant" color={color} size={size} />,
+        }}
+      />
+      <Tab.Screen
         name="Add Car"
         component={AddCarScreen}
         options={{
@@ -81,6 +99,29 @@ function MainTabs({ initialRouteName }: { initialRouteName: string }) {
         }}
       />
     </Tab.Navigator>
+  );
+}
+
+function StoryStackNavigator() {
+  return (
+    <StoryStack.Navigator screenOptions={{ headerTitleStyle: { fontFamily: 'Trebuchet MS', fontWeight: '800' } }}>
+      <StoryStack.Screen name="Storybook" component={StorybookScreen} options={{ title: 'Our Story' }} />
+      <StoryStack.Screen name="PrintPreview" component={PrintPreviewScreen} options={{ title: 'Create a keepsake' }} />
+      <StoryStack.Screen
+        name="MemberCarousel"
+        component={MemberEditScreen}
+        options={({ route }) => ({ title: route.params.member.display_name })}
+      />
+      <StoryStack.Screen
+        name="AddCarForMember"
+        component={AddCarScreen}
+        options={({ route }) => ({
+          title: route.params.car
+            ? `Edit ${route.params.car.year} ${route.params.car.make} ${route.params.car.model}`
+            : `Add a car for ${route.params.member.display_name}`,
+        })}
+      />
+    </StoryStack.Navigator>
   );
 }
 

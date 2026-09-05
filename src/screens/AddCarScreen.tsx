@@ -193,7 +193,7 @@ export default function AddCarScreen() {
       } else {
         const addedCar = await addCar(carDetails, photoUri ?? undefined);
         if (!familyCarsLoading && familyCars.length === 0) {
-          setSavedCar({ ...(addedCar as Car), member_display_name: selectedMember?.display_name ?? 'Family' });
+          setSavedCar({ ...(addedCar as Car), member_display_name: selectedMember?.display_name ?? 'Family', photos: [] });
           setSaving(false);
           return;
         }

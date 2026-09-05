@@ -87,6 +87,16 @@ drop table if exists public.collection_migration_runs;
 The legacy `cars` rows and their original `photo_url`, `memories`, and
 vehicle-specific fields remain available throughout that rollback.
 
+## Phase 4 Storybook and keepsake
+
+The `Our Story` tab is a narrative view over the private Cars collection. It
+supports sorting by date added, year, person, and status, handles missing
+photos/stories, displays ordered `item_photos` captions, and links to the
+existing authorized car edit/detail flow. `Create a keepsake` opens a
+browser-native print preview with a cover, an index for larger collections,
+and one print page per car. It does not create PDFs or expose collection data
+outside the existing authenticated Supabase/RLS path.
+
 ## Project structure
 
 ```
