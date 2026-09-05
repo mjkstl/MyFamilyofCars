@@ -26,6 +26,7 @@ import { CAR_COLORS } from '@/utils/carColors';
 import type { Car, CarStatus } from '@/types/database';
 import AppLogoHeader from '@/components/AppLogoHeader';
 import { useAllFamilyCars, type FamilyCar } from '@/hooks/useAllFamilyCars';
+import { openVehicleSearch } from '@/utils/vehicleSearch';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const DECADES = [1980, 1990, 2000, 2010, 2020];
@@ -106,9 +107,7 @@ export default function AddCarScreen() {
   const era = deriveEra(year);
   const previewPhotoUri = photoUri ?? editingCar?.photo_url ?? null;
   const searchDetails = [year.trim(), make.trim(), model.trim(), color?.trim(), trim.trim()].filter(Boolean).join(' ');
-  const searchLabel = searchDetails
-    ? `Don't have a photo, Search for my car: ${searchDetails}`
-    : "Don't have a photo, Search for my car";
+  const searchLabel = "Don't have a photo, Search for my car";
 
   const onMakeChange = async (text: string) => {
     setMake(text);
@@ -247,6 +246,9 @@ export default function AddCarScreen() {
           {savedCar.year} {savedCar.make} {savedCar.model}
         </Text>
         <Text style={styles.successDriver}>Connected to {savedCar.member_display_name}</Text>
+        <Pressable style={styles.saleButton} onPress={() => void openVehicleSearch(savedCar.make, savedCar.model, savedCar.year, savedCar.trim, savedCar.color)}>
+          <Text style={styles.saleButtonText}>Find this car for sale!</Text>
+        </Pressable>
         <Pressable style={styles.primarySuccessButton} onPress={handleInviteFamily}>
           <Text style={styles.primaryButtonText}>Invite family</Text>
         </Pressable>
@@ -384,7 +386,7 @@ export default function AddCarScreen() {
         </Pressable>
         <Text style={styles.searchHint}>Opens a Google Images search in your browser — save a photo you like, then upload it above.</Text>
 
-        <Text style={styles.label}>Car color{color ? ` — ${color}` : ''}</Text>
+        <Text style={styles.label}>Car color (optional){color ? ` — ${color}` : ''}</Text>
         <View style={styles.colorRow}>
           {CAR_COLORS.map((c) => (
             <Pressable
@@ -468,6 +470,8 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   secondaryButtonText: { color: '#1D4ED8', fontSize: 15, fontWeight: '600' },
   backLink: { color: '#64748B', marginTop: 14 },
+  saleButton: { width: '100%', borderWidth: 1, borderColor: '#B45309', borderRadius: 9, paddingVertical: 11, alignItems: 'center', marginBottom: 12, backgroundColor: '#FEF3C7' },
+  saleButtonText: { color: '#92400E', fontWeight: '800', fontSize: 13 },
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',

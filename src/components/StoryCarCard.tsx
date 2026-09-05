@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { FamilyCar } from '@/hooks/useAllFamilyCars';
 import CollectionPhotoGallery from '@/components/CollectionPhotoGallery';
+import { openVehicleSearch } from '@/utils/vehicleSearch';
 
 export default function StoryCarCard({
   car,
@@ -30,6 +31,9 @@ export default function StoryCarCard({
       <Pressable accessibilityRole="button" accessibilityLabel={`Edit the story for ${car.year} ${car.make} ${car.model}`} onPress={onEdit}>
         <Text style={styles.edit}>Edit story and details</Text>
       </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Find this ${car.year} ${car.make} ${car.model} for sale`} style={styles.saleButton} onPress={() => void openVehicleSearch(car.make, car.model, car.year, car.trim, car.color)}>
+        <Text style={styles.saleButtonText}>Find this car for sale!</Text>
+      </Pressable>
     </View>
   );
 }
@@ -42,4 +46,6 @@ const styles = StyleSheet.create({
   person: { color: '#1D4ED8', fontSize: 13, fontWeight: '700', marginTop: 8 },
   story: { color: '#334155', fontSize: 14, lineHeight: 21, marginTop: 9 },
   edit: { color: '#1D4ED8', fontWeight: '700', marginTop: 14 },
+  saleButton: { borderWidth: 1, borderColor: '#B45309', borderRadius: 9, paddingVertical: 9, alignItems: 'center', marginTop: 12, backgroundColor: '#FEF3C7' },
+  saleButtonText: { color: '#92400E', fontWeight: '800', fontSize: 13 },
 });

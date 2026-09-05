@@ -3,6 +3,7 @@ import { View, Text, Image, Pressable, StyleSheet, Dimensions } from 'react-nati
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { Car, CarFact, CarStatus } from '@/types/database';
 import { getColorHex } from '@/utils/carColors';
+import { openVehicleSearch } from '@/utils/vehicleSearch';
 
 const CARD_WIDTH = Dimensions.get('window').width * 0.82;
 
@@ -96,6 +97,15 @@ export default function CarCard({
           <Text style={styles.funFactText}>{car.fun_fact}</Text>
         </View>
       ) : null}
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Find this ${car.year} ${car.make} ${car.model} for sale`}
+        style={styles.saleButton}
+        onPress={() => void openVehicleSearch(car.make, car.model, car.year, car.trim, car.color)}
+      >
+        <Text style={styles.saleButtonText}>Find this car for sale!</Text>
+      </Pressable>
 
       {(onEdit || onDelete) && (
         <View style={styles.actionsRow}>
@@ -203,4 +213,6 @@ const styles = StyleSheet.create({
   actionEdit: { color: '#1D4ED8', fontSize: 13, fontWeight: '600' },
   actionDelete: { color: '#DC2626', fontSize: 13, fontWeight: '600' },
   actionsDivider: { color: '#ccc' },
+  saleButton: { borderWidth: 1, borderColor: '#B45309', borderRadius: 9, paddingVertical: 9, alignItems: 'center', marginTop: 12, backgroundColor: '#FEF3C7' },
+  saleButtonText: { color: '#92400E', fontWeight: '800', fontSize: 13 },
 });
