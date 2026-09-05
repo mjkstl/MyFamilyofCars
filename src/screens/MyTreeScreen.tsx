@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, FlatList, StyleSheet, Text, ActivityIndicator, SafeAreaView, Pressable, Alert, Share, TextInput, Modal } from 'react-native';
+import { View, FlatList, StyleSheet, Text, ActivityIndicator, SafeAreaView, Pressable, Alert, Share, TextInput, Modal, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -75,13 +75,25 @@ export default function MyTreeScreen() {
   const carsByMember = (memberId: string) => allCars.filter((c) => c.member_id === memberId);
 
   const handleSharePoster = async () => {
-    if (!posterRef.current) return;
     setSharing(true);
     try {
+      const message = `Our family cars on My Family of Cars${family?.name ? ` — ${family.name}` : ''}`;
+      if (Platform.OS === 'web') {
+        if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+          await navigator.share({ title: 'My Family of Cars', text: message });
+        } else {
+          await Clipboard.setStringAsync(message);
+          Alert.alert('Share text copied', 'Your family sharing message was copied to the clipboard.');
+        }
+        return;
+      }
+      if (!posterRef.current) {
+        throw new Error('The family poster is not ready yet. Please try again.');
+      }
       const uri = await captureRef(posterRef, { format: 'png', quality: 1 });
       await Share.share(
         {
-          message: `Our family cars on My Family of Cars${family?.name ? ` — ${family.name}` : ''}`,
+          message,
           url: uri,
         },
         { dialogTitle: 'Share My Family of Cars', subject: 'My Family of Cars' },
