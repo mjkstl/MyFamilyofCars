@@ -50,6 +50,10 @@ sources of cryptic runtime crashes in React Native.
    migration creates one private Cars collection per family, links legacy cars
    to generic items, and records the migration result in
    `collection_migration_runs`. It is additive and safe to rerun.
+7. Apply `supabase/migrations/0004_keepsake_interest_attribution_analytics.sql`
+   to enable the private keepsake interest form and first-party analytics.
+   This migration does not add payment, fulfillment, shipping, or public
+   collection access.
 
 ---
 

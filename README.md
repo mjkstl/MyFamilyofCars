@@ -97,6 +97,39 @@ browser-native print preview with a cover, an index for larger collections,
 and one print page per car. It does not create PDFs or expose collection data
 outside the existing authenticated Supabase/RLS path.
 
+## Phase 5 demand validation and attribution
+
+`Create a keepsake` offers one coming-soon product configuration,
+`Hardcover Family of Cars Book`. The interest form accepts only a selected
+format, optional copy count, and optional email with an explicit contact
+consent checkbox. It does not collect payment, shipping, or delivery details.
+
+The application records only these analytics event properties:
+
+- `family_created`: no private content; family context only
+- `first_car_saved`: no private content; family context only
+- `first_story_saved`: no private content; family context only
+- `invite_opened`: no private content; family context only
+- `invite_accepted`: no private content; family context only
+- `storybook_opened`: no private content; family context only
+- `print_preview_opened`: no private content; family context only
+- `keepsake_interest_opened`: no properties
+- `keepsake_interest_submitted`: `product_id`, `format`, `has_email`, `marketing_opt_in`
+- `referral_attributed`: `source_type`, `has_partner`, `has_campaign`
+- `activation_completed`: no private content; family context only
+
+Referral URLs may use `?ref=CODE&campaign=CAMPAIGN`. Only active codes in the
+internal partner configuration are accepted. Stored attribution contains only
+source type, partner ID, campaign ID, first-seen timestamp, and conversion
+milestones. Partner branding never appears inside a private family collection.
+
+Apply `supabase/migrations/0004_keepsake_interest_attribution_analytics.sql`
+after the Phase 3 migration. Roll back by disabling the Phase 5 UI first, then
+dropping only `keepsake_interest`, `analytics_events`, and
+`referral_attributions`; legacy families, cars, stories, photos, invites, and
+the Phase 3 collection foundation are unaffected. No payment, order,
+printing, fulfillment, vendor integration, or public exposure was implemented.
+
 ## Project structure
 
 ```
