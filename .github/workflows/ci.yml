@@ -1,4 +1,4 @@
-name: CI — build & deploy web
+name: CI — build & typecheck
 
 on:
   push:
@@ -40,36 +40,11 @@ jobs:
           path: dist
           if-no-files-found: error
 
-  deploy:
-    name: Deploy to Vercel
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+  # Deployment is now handled by Vercel's native GitHub integration
+  # (connected directly in the Vercel dashboard) rather than a CLI step
+  # here — it deploys automatically on every push to main without
+  # needing VERCEL_TOKEN/PROJECT_ID/ORG_ID as GitHub secrets at all.
+  # This job stays purely as a code-quality gate: if typecheck or the
+  # web export fails, you'll see it here independently of whether
+  # Vercel's own build succeeds.
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: 24
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Download Expo web build
-        uses: actions/download-artifact@v4
-        with:
-          name: expo-web-dist
-          path: dist
-
-      - name: Deploy static export to Vercel
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-        run: |
-          VERCEL_ARGS=(--prod --token "$VERCEL_TOKEN" --project "$VERCEL_PROJECT_ID" --yes ./dist)
-          if [ -n "$VERCEL_ORG_ID" ]; then
-            VERCEL_ARGS+=(--scope "$VERCEL_ORG_ID")
-          fi
-          npx vercel "${VERCEL_ARGS[@]}"
