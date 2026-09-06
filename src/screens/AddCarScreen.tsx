@@ -23,7 +23,7 @@ import { useMembers } from '@/hooks/useMembers';
 import { useCars } from '@/hooks/useCars';
 import { searchMakes, getModelsForMake } from '@/utils/nhtsa';
 import { CAR_COLORS } from '@/utils/carColors';
-import type { Car, CarStatus } from '@/types/database';
+import type { Car, CarStatus, OwnershipDuration } from '@/types/database';
 import AppLogoHeader from '@/components/AppLogoHeader';
 import { useAllFamilyCars, type FamilyCar } from '@/hooks/useAllFamilyCars';
 import { openVehicleSearch } from '@/utils/vehicleSearch';
@@ -32,6 +32,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 const DECADES = [1980, 1990, 2000, 2010, 2020];
 
 const STATUS_OPTIONS: { value: CarStatus; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
+  { value: 'first', label: 'First Car', icon: 'numeric-1-circle' },
   { value: 'current', label: 'Currently Driving', icon: 'circle' },
   { value: 'memory', label: 'Memory', icon: 'image-multiple' },
   { value: 'dream', label: 'Dream Car', icon: 'star' },
@@ -96,8 +97,9 @@ export default function AddCarScreen() {
   const [makeSuggestions, setMakeSuggestions] = useState<string[]>([]);
   const [model, setModel] = useState(editingCar?.model ?? '');
   const [modelSuggestions, setModelSuggestions] = useState<string[]>([]);
-  const [year, setYear] = useState(editingCar ? String(editingCar.year) : String(CURRENT_YEAR));
+  const [year, setYear] = useState(editingCar ? String(editingCar.year) : '');
   const [status, setStatus] = useState<CarStatus>(editingCar?.status ?? 'current');
+  const [ownershipDuration, setOwnershipDuration] = useState<OwnershipDuration | null>(editingCar?.ownership_duration ?? null);
   const [color, setColor] = useState<string | null>(editingCar?.color ?? null);
   const [memories, setMemories] = useState(editingCar?.memories ?? '');
   const [funFact, setFunFact] = useState(editingCar?.fun_fact ?? '');
@@ -108,6 +110,7 @@ export default function AddCarScreen() {
   const previewPhotoUri = photoUri ?? editingCar?.photo_url ?? null;
   const searchDetails = [year.trim(), make.trim(), model.trim(), color?.trim(), trim.trim()].filter(Boolean).join(' ');
   const searchLabel = "Don't have a photo, Search for my car";
+  const yearSuggestions = year.length === 1 ? Array.from({ length: 10 }, (_, index) => `${year}${String(index).padStart(3, '0')}`) : [];
 
   const onMakeChange = async (text: string) => {
     setMake(text);
@@ -166,7 +169,7 @@ export default function AddCarScreen() {
     setTrim('');
     setMake('');
     setModel('');
-    setYear(String(CURRENT_YEAR));
+    setYear('');
     setStatus('current');
     setColor(null);
     setMemories('');
@@ -196,6 +199,7 @@ export default function AddCarScreen() {
         model: model.trim(),
         year: yearNum,
         status,
+        ownership_duration: ownershipDuration ?? undefined,
         color: color ?? undefined,
         memories: memories.trim() || undefined,
         fun_fact: funFact.trim() || undefined,
@@ -294,6 +298,16 @@ export default function AddCarScreen() {
       </View>
 
       <ScrollView style={styles.form} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <Text style={styles.label}>Status</Text>
+        <View style={styles.statusRow}>
+          {STATUS_OPTIONS.map((opt) => (
+            <Pressable key={opt.value} onPress={() => setStatus(opt.value)} style={[styles.statusPill, status === opt.value && styles.statusPillActive]}>
+              <MaterialCommunityIcons name={opt.icon} size={16} color={status === opt.value ? '#166534' : '#6B7280'} />
+              <Text style={[styles.statusPillText, status === opt.value && styles.statusPillTextActive]}>{opt.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
         <Text style={styles.label}>Person this car is connected to</Text>
         <View style={styles.memberRow}>
           {members.map((m) => (
@@ -323,6 +337,15 @@ export default function AddCarScreen() {
               keyboardType="number-pad"
               maxLength={4}
             />
+            {yearSuggestions.length > 0 && (
+              <View style={styles.suggestionBox}>
+                {yearSuggestions.map((suggestion) => (
+                  <Pressable key={suggestion} onPress={() => setYear(suggestion)}>
+                    <Text style={styles.suggestion}>{suggestion}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
           </View>
           <View style={styles.sideBySideField}>
             <Text style={styles.label}>Make</Text>
@@ -405,6 +428,18 @@ export default function AddCarScreen() {
           onChangeText={setTrim}
           placeholder="e.g. Sport, Touring, Limited"
         />
+        <Text style={styles.label}>How long did you own it? (optional)</Text>
+        <View style={styles.statusRow}>
+          {([
+            ['under_2_years', '<2 years'],
+            ['under_5_years', '<5 years'],
+            ['five_plus_years', '5+ years'],
+          ] as const).map(([value, label]) => (
+            <Pressable key={value} onPress={() => setOwnershipDuration(value)} style={[styles.statusPill, ownershipDuration === value && styles.statusPillActive]}>
+              <Text style={[styles.statusPillText, ownershipDuration === value && styles.statusPillTextActive]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
 
         <Text style={styles.label}>Nickname (optional)</Text>
         <TextInput accessibilityLabel="Car nickname" style={styles.input} value={nickname} onChangeText={setNickname} placeholder="e.g. Old Betsy" />
@@ -437,15 +472,6 @@ export default function AddCarScreen() {
                 <View key={d} style={[styles.eraChip, era === d && styles.eraChipActive]}>
                   <Text style={[styles.eraChipText, era === d && styles.eraChipTextActive]}>{d}s</Text>
                 </View>
-              ))}
-            </View>
-            <Text style={styles.label}>Status</Text>
-            <View style={styles.statusRow}>
-              {STATUS_OPTIONS.map((opt) => (
-                <Pressable key={opt.value} onPress={() => setStatus(opt.value)} style={[styles.statusPill, status === opt.value && styles.statusPillActive]}>
-                  <MaterialCommunityIcons name={opt.icon} size={16} color={status === opt.value ? '#166534' : '#6B7280'} />
-                  <Text style={[styles.statusPillText, status === opt.value && styles.statusPillTextActive]}>{opt.label}</Text>
-                </Pressable>
               ))}
             </View>
             <Text style={styles.label}>Fun fact (optional)</Text>

@@ -56,7 +56,10 @@ export default function MemberTile({
       ) : null}
 
       {cars.length > 0 && (
-        <>
+        <View style={styles.branchWrap}>
+          <View style={styles.branchStem} />
+          <View style={styles.branchLine} />
+          <View style={styles.branchCars}>
           <View style={expanded ? styles.carThumbColumn : styles.carThumbRow}>
             {previewCars.map((car) => (
               <View key={car.id} style={[styles.carThumbFrame, expanded && styles.carThumbFrameExpanded]}>
@@ -91,7 +94,8 @@ export default function MemberTile({
               <Text style={styles.reorderLinkText}>Reorder cars</Text>
             </Pressable>
           )}
-        </>
+          </View>
+        </View>
       )}
     </Pressable>
   );
@@ -113,6 +117,10 @@ const styles = StyleSheet.create({
   carThumb: { width: '100%', height: '100%' },
   carThumbFallback: { flex: 1, backgroundColor: '#CBD5E1' },
   carThumbLabel: { fontSize: 10, color: '#475569', marginTop: 3, maxWidth: 63 },
+  branchWrap: { position: 'relative', width: '100%', alignItems: 'center' },
+  branchStem: { position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: '#94A3B8' },
+  branchLine: { position: 'absolute', top: 28, left: '50%', right: 0, height: 2, backgroundColor: '#94A3B8' },
+  branchCars: { width: '100%', alignItems: 'center' },
   // "Brown" down-arrow per the design note — a warm amber-brown rather
   // than the app's usual blue, so it reads as its own distinct control.
   expandButton: {

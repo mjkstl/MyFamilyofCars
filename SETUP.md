@@ -53,7 +53,9 @@ sources of cryptic runtime crashes in React Native.
 7. Apply `supabase/migrations/0004_keepsake_interest_attribution_analytics.sql`
    to enable the private keepsake interest form and first-party analytics,
    then `supabase/migrations/0005_reassignment_cleanup.sql` to keep generic
-   item relationships aligned when a car is reassigned.
+   item relationships aligned when a car is reassigned. Then apply
+   `supabase/migrations/0006_car_status_duration.sql` to add the First Car
+   status and optional ownership-duration choices.
    This migration does not add payment, fulfillment, shipping, or public
    collection access.
 

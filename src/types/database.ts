@@ -64,7 +64,8 @@ export interface Member {
   created_at: string;
 }
 
-export type CarStatus = 'current' | 'memory' | 'dream';
+export type CarStatus = 'first' | 'current' | 'memory' | 'dream';
+export type OwnershipDuration = 'under_2_years' | 'under_5_years' | 'five_plus_years';
 
 export interface Car {
   id: string;
@@ -75,6 +76,7 @@ export interface Car {
   model: string;
   year: number;
   trim: string | null;
+  ownership_duration: OwnershipDuration | null;
   color: string | null;
   nickname: string | null;
   memories: string | null;
@@ -131,6 +133,7 @@ export type CarInsert = Pick<Car, 'member_id' | 'make' | 'model' | 'year'> &
       | 'memories'
       | 'fun_fact'
       | 'status'
+      | 'ownership_duration'
       | 'photo_url'
       | 'photo_quality_status'
       | 'purchase_date'

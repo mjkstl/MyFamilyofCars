@@ -35,7 +35,7 @@ export default function StorybookScreen() {
 
   const sortedCars = useMemo(() => {
     const result = [...cars];
-    const statusOrder = { current: 0, memory: 1, dream: 2 };
+    const statusOrder = { first: 0, current: 1, memory: 2, dream: 3 };
     result.sort((a, b) => {
       if (sortMode === 'year') return a.year - b.year;
       if (sortMode === 'person') return a.member_display_name.localeCompare(b.member_display_name);

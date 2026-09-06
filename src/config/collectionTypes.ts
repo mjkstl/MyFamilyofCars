@@ -19,6 +19,7 @@ export const CARS_COLLECTION_CONFIG: CollectionTypeConfig = {
   filters: [
     { value: 'all', label: 'All' },
     { value: 'current', label: 'Currently Driving' },
+    { value: 'first', label: 'First Car' },
     { value: 'memory', label: 'Memories' },
     { value: 'dream', label: 'Dream Cars' },
   ],

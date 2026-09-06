@@ -76,7 +76,7 @@ export default function PrintPreviewScreen() {
               <Text style={styles.carTitle}>{car.year} {car.make} {car.model}</Text>
               {car.nickname ? <Text style={styles.carNickname}>“{car.nickname}”</Text> : null}
               <Text style={styles.carPerson}>Connected to {car.member_display_name}</Text>
-              <Text style={styles.carStatus}>{car.status === 'current' ? 'Currently Driving' : car.status === 'memory' ? 'Memory' : 'Dream Car'}</Text>
+              <Text style={styles.carStatus}>{car.status === 'first' ? 'First Car' : car.status === 'current' ? 'Currently Driving' : car.status === 'memory' ? 'Memory' : 'Dream Car'}</Text>
               <Text style={styles.storyHeading}>The story</Text>
               <Text style={styles.story}>{car.memories || 'This car is waiting for its story.'}</Text>
               {car.color ? <Text style={styles.detail}>Color: {car.color}</Text> : null}
