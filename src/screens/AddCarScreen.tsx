@@ -110,7 +110,11 @@ export default function AddCarScreen() {
   const previewPhotoUri = photoUri ?? editingCar?.photo_url ?? null;
   const searchDetails = [year.trim(), make.trim(), model.trim(), color?.trim(), trim.trim()].filter(Boolean).join(' ');
   const searchLabel = "Don't have a photo, Search for my car";
-  const yearSuggestions = year.length === 1 ? Array.from({ length: 10 }, (_, index) => `${year}${String(index).padStart(3, '0')}`) : [];
+  const yearSuggestions = year.length === 1
+    ? Array.from({ length: CURRENT_YEAR + 2 - 1885 }, (_, index) => String(1885 + index))
+      .filter((suggestion) => suggestion.startsWith(year))
+      .slice(0, 12)
+    : [];
 
   const onMakeChange = async (text: string) => {
     setMake(text);
