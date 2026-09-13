@@ -5,15 +5,15 @@ export interface AuthorizedCollectionExport {
   exported_at: string;
   family: Pick<Family, 'id' | 'name' | 'created_at'>;
   people: Member[];
-  collections: Array<{
+  collections: {
     collection: Collection;
-    items: Array<{
+    items: {
       item: Item;
       car: Car | null;
       photos: ItemPhoto[];
       people: ItemPerson[];
-    }>;
-  }>;
+    }[];
+  }[];
 }
 
 /**

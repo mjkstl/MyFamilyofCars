@@ -47,7 +47,14 @@ export interface Family {
   id: string;
   name: string;
   created_by: string;
-  invite_code: string;
+  // Legacy 8-char code — stays valid until the family rotates their
+  // invite, at which point this is cleared permanently. See
+  // 0007_secure_family_invite_access.sql.
+  invite_code: string | null;
+  // High-entropy invite token (192 bits) — the current invite scheme.
+  // Always present after migration 0007's backfill.
+  invite_token: string;
+  invite_revoked_at: string | null;
   created_at: string;
 }
 

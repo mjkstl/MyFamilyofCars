@@ -181,12 +181,18 @@ export function useFamily() {
     const session = await ensureAnonymousSession();
     if (!session) throw new Error('No auth session.');
 
-    const { data: family, error: famErr } = await supabase
-      .from('families')
-      .select('*')
-      .eq('invite_code', inviteCode.trim().toLowerCase())
+    // Secure, minimal-data lookup (see 0007_secure_family_invite_access.sql)
+    // — replaces a previous direct `select * from families where
+    // invite_code = ...`, which was exploitable to read every family's
+    // full row since the RLS policy backing that query allowed it for
+    // anyone. This RPC returns only {family_id, family_name}, nothing else.
+    const { data: inviteData, error: inviteErr } = await supabase
+      .rpc('lookup_invite', { p_code: inviteCode.trim().toLowerCase() })
       .single();
-    if (famErr || !family) throw new Error('Invite code not found — double-check it and try again.');
+    if (inviteErr || !inviteData) {
+      throw new Error('Invite code not found — double-check it and try again.');
+    }
+    const invite = inviteData as { family_id: string; family_name: string };
 
     const freshSession = await ensureAnonymousSession();
     if (!freshSession) throw new Error('No auth session.');
@@ -194,13 +200,23 @@ export function useFamily() {
     const { data: member, error: memErr } = await supabase
       .from('members')
       .insert({
-        family_id: family.id,
+        family_id: invite.family_id,
         display_name: yourDisplayName,
         user_id: freshSession.user.id,
       })
       .select()
       .single();
     if (memErr) throw toDescriptiveError(memErr, 'adding you to the family');
+
+    // Only now — after the insert above has made this session a real
+    // member — does normal RLS ("families are visible to their creator
+    // or members") permit reading the full family row.
+    const { data: family, error: famErr } = await supabase
+      .from('families')
+      .select('*')
+      .eq('id', invite.family_id)
+      .single();
+    if (famErr || !family) throw new Error('Joined the family, but couldn\u2019t load its details. Try refreshing.');
 
     await AsyncStorage.setItem(STORAGE_KEYS.familyId, family.id);
     await AsyncStorage.setItem(STORAGE_KEYS.memberId, member.id);
@@ -210,5 +226,28 @@ export function useFamily() {
     return { family: family as Family, member: member as Member };
   }, []);
 
-  return { ...state, createFamily, updateFamily, resetFamily, joinFamily, refresh: loadPersisted };
+  /** Invalidates the family's current invite (both the legacy code and
+   * any previously-shared token) and issues a fresh high-entropy token.
+   * See 0007_secure_family_invite_access.sql — rotation IS revocation
+   * here, not a separate step. */
+  const rotateInvite = useCallback(async (familyId: string) => {
+    const { data: newToken, error } = await supabase.rpc('revoke_and_rotate_invite', {
+      p_family_id: familyId,
+    });
+    if (error) throw error;
+    setState((prev) =>
+      prev.family && prev.family.id === familyId
+        ? { ...prev, family: { ...prev.family, invite_token: newToken as string, invite_code: null } }
+        : prev
+    );
+    if (Platform.OS === 'web' && webSessionFamily?.family.id === familyId) {
+      webSessionFamily = {
+        ...webSessionFamily,
+        family: { ...webSessionFamily.family, invite_token: newToken as string, invite_code: null },
+      };
+    }
+    return newToken as string;
+  }, []);
+
+  return { ...state, createFamily, updateFamily, resetFamily, joinFamily, rotateInvite, refresh: loadPersisted };
 }

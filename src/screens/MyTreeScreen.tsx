@@ -36,7 +36,7 @@ function getFamilyInviteUrl(inviteCode: string | undefined): string {
 
 export default function MyTreeScreen() {
   const navigation = useNavigation<Nav>();
-  const { family, currentMember } = useFamily();
+  const { family, currentMember, rotateInvite } = useFamily();
   const { members, loading, addMemberWithInference, updateMember } = useMembers(family?.id);
   const { cars: allCars, refresh: refreshCars } = useAllFamilyCars(family?.id);
   const listRef = useRef<FlatList>(null);
@@ -46,6 +46,7 @@ export default function MyTreeScreen() {
   const [search, setSearch] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [rotating, setRotating] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [savingNewMember, setSavingNewMember] = useState(false);
 
@@ -84,8 +85,8 @@ export default function MyTreeScreen() {
   const carsByMember = (memberId: string) => allCars.filter((c) => c.member_id === memberId);
 
   const handleInviteFamily = async () => {
-    if (!family?.invite_code) {
-      Alert.alert('Invite unavailable', 'Your family invite code is not ready yet.');
+    if (!family?.invite_token) {
+      Alert.alert('Invite unavailable', 'Your family invite is not ready yet.');
       return;
     }
     try {
@@ -98,6 +99,32 @@ export default function MyTreeScreen() {
     } catch (err) {
       Alert.alert('Couldn\u2019t share invite', err instanceof Error ? err.message : String(err));
     }
+  };
+
+  const handleRotateInvite = () => {
+    if (!family) return;
+    Alert.alert(
+      'Get a new invite link?',
+      'Anyone with the old invite code or link will no longer be able to join using it. This can\u2019t be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Get new invite',
+          style: 'destructive',
+          onPress: async () => {
+            setRotating(true);
+            try {
+              await rotateInvite(family.id);
+              setCopied(false);
+            } catch (err) {
+              Alert.alert('Couldn\u2019t rotate invite', err instanceof Error ? err.message : String(err));
+            } finally {
+              setRotating(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSaveMember = async (displayName: string, avatarUri: string | null) => {
@@ -270,12 +297,12 @@ export default function MyTreeScreen() {
             <Text style={styles.inviteTitle}>Share my family</Text>
             <Text style={styles.inviteBody}>Invitees can add their cars and memories. Your collection remains private by default.</Text>
             <Text style={styles.inviteCodeLabel}>Invite code</Text>
-            <Text style={styles.inviteCode} selectable>{family?.invite_code}</Text>
+            <Text style={styles.inviteCode} selectable>{family?.invite_token}</Text>
             <Pressable
               style={styles.copyButton}
               onPress={async () => {
-                if (family?.invite_code) {
-                  await Clipboard.setStringAsync(family.invite_code);
+                if (family?.invite_token) {
+                  await Clipboard.setStringAsync(family.invite_token);
                   setCopied(true);
                 }
               }}
@@ -285,10 +312,17 @@ export default function MyTreeScreen() {
             <Pressable
               style={styles.shareInviteButton}
               onPress={() => Share.share({
-                message: `Join my family on My Family of Cars! Use invite code: ${family?.invite_code}. Open ${getFamilyInviteUrl(family?.invite_code)}`,
+                message: `Join my family on My Family of Cars! Use invite code: ${family?.invite_token}. Open ${getFamilyInviteUrl(family?.invite_token)}`,
               })}
             >
               <Text style={styles.shareInviteText}>Share message</Text>
+            </Pressable>
+            <Pressable style={styles.rotateInviteButton} onPress={handleRotateInvite} disabled={rotating}>
+              {rotating ? (
+                <ActivityIndicator color="#B91C1C" size="small" />
+              ) : (
+                <Text style={styles.rotateInviteText}>Get a new invite link</Text>
+              )}
             </Pressable>
             <Pressable onPress={() => setInviteOpen(false)}>
               <Text style={styles.cancelInviteText}>Close</Text>
@@ -335,6 +369,8 @@ const styles = StyleSheet.create({
   copyButton: { backgroundColor: '#1D4ED8', borderRadius: 10, padding: 13, alignItems: 'center', marginTop: 18 },
   shareInviteButton: { borderWidth: 1, borderColor: '#1D4ED8', borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8 },
   shareInviteText: { color: '#1D4ED8', fontWeight: '700' },
+  rotateInviteButton: { padding: 10, alignItems: 'center', marginTop: 10 },
+  rotateInviteText: { color: '#B91C1C', fontWeight: '600', fontSize: 13 },
   cancelInviteText: { color: '#64748B', textAlign: 'center', marginTop: 16 },
   empty: { textAlign: 'center', color: '#888', marginTop: 40 },
   offscreen: { position: 'absolute', top: -9999, left: -9999 },
