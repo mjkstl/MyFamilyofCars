@@ -27,7 +27,7 @@ export default function CollectionPhotoGallery({
     <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ height, width }} accessibilityLabel={`${orderedPhotos.length} car photo${orderedPhotos.length === 1 ? '' : 's'}`}>
       {orderedPhotos.map((photo) => (
         <View key={photo.id} style={{ width, height }}>
-          <Image source={{ uri: photo.url }} style={[styles.photo, { height }]} resizeMode="cover" />
+          <Image source={{ uri: photo.url }} style={[styles.photo, { height }]} resizeMode="contain" />
           {photo.caption ? <Text style={styles.caption}>{photo.caption}</Text> : null}
         </View>
       ))}

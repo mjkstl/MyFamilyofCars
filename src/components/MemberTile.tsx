@@ -64,7 +64,7 @@ export default function MemberTile({
             {previewCars.map((car) => (
               <View key={car.id} style={[styles.carThumbFrame, expanded && styles.carThumbFrameExpanded]}>
                 {car.photo_url ? (
-                  <Image source={{ uri: car.photo_url }} style={styles.carThumb} resizeMode="cover" />
+                  <Image source={{ uri: car.photo_url }} style={styles.carThumb} resizeMode="contain" />
                 ) : (
                   <View style={styles.carThumbFallback} />
                 )}
