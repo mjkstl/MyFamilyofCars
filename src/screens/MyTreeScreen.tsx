@@ -13,7 +13,7 @@ import MemberTile from '@/components/MemberTile';
 import MemberEditModal from '@/components/MemberEditModal';
 import AddFamilyMemberModal from '@/components/AddFamilyMemberModal';
 import AppLogoHeader from '@/components/AppLogoHeader';
-import CarCard from '@/components/CarCard';
+import CollectionCarRow from '@/components/CollectionCarRow';
 import type { TreeStackParamList, RootStackParamList } from '@/navigation/RootNavigator';
 import type { CarStatus, Member } from '@/types/database';
 import { CARS_COLLECTION_CONFIG } from '@/config/collectionTypes';
@@ -232,8 +232,7 @@ export default function MyTreeScreen() {
                           accessibilityLabel={`View ${car.year} ${car.make} ${car.model} for ${car.member_display_name}`}
                           onPress={() => member && navigation.navigate('MemberCarousel', { member })}
                         >
-                          <CarCard car={car} fact={null} />
-                          <Text style={styles.connectedLabel}>Connected to {car.member_display_name}</Text>
+                          <CollectionCarRow car={car} memberName={car.member_display_name} />
                         </Pressable>
                       );
                     })}
