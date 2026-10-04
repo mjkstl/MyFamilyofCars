@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, Image, Pressable, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { Car, CarFact, CarStatus } from '@/types/database';
 import { getColorHex } from '@/utils/carColors';
 import { openVehicleSearch } from '@/utils/vehicleSearch';
 
-const CARD_WIDTH = Dimensions.get('window').width * 0.82;
+// Photo box is a 4:3 ratio of the card width, not a fixed height. A fixed
+// height (the previous approach) stays correct for exactly one card width;
+// the moment the card is wider or narrower — a different phone, a resized
+// browser window — a real car photo in resizeMode="contain" either shrinks
+// to a sliver inside a too-short box or has nowhere near enough room.
+const PHOTO_ASPECT_RATIO = 3 / 4; // height = width * PHOTO_ASPECT_RATIO
 
 const STATUS_META: Record<CarStatus, { label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; bg: string; fg: string }> = {
   first: { label: 'First Car', icon: 'numeric-1-circle', bg: '#DBEAFE', fg: '#1D4ED8' },
@@ -26,9 +31,12 @@ export default function CarCard({
   onDelete?: () => void;
 }) {
   const [factExpanded, setFactExpanded] = useState(false);
+  const { width: windowWidth } = useWindowDimensions();
+  const cardWidth = windowWidth * 0.82;
+  const photoHeight = cardWidth * PHOTO_ASPECT_RATIO;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { width: cardWidth }]}>
       <View style={styles.photoWrap}>
         {/* Placeholder anchor for Phase 2 fun facts (mpg, popular color, cool
             features, etc). Not wired to real data yet — this just reserves
@@ -41,9 +49,9 @@ export default function CarCard({
           <View style={styles.factBubbleTail} />
         </View>
         {car.photo_url ? (
-          <Image source={{ uri: car.photo_url }} style={styles.photo} resizeMode="contain" />
+          <Image source={{ uri: car.photo_url }} style={[styles.photo, { height: photoHeight }]} resizeMode="contain" />
         ) : (
-          <View style={[styles.photo, styles.photoFallback]}>
+          <View style={[styles.photo, styles.photoFallback, { height: photoHeight }]}>
             <Text style={styles.photoFallbackText}>No photo yet</Text>
           </View>
         )}
@@ -129,7 +137,6 @@ export default function CarCard({
 
 const styles = StyleSheet.create({
   card: {
-    width: CARD_WIDTH,
     marginHorizontal: 8,
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -172,7 +179,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     transform: [{ rotate: '45deg' }],
   },
-  photo: { width: '100%', height: 90, borderRadius: 12, marginBottom: 10, backgroundColor: '#F3F4F6' },
+  photo: { width: '100%', borderRadius: 12, marginBottom: 10, backgroundColor: '#F3F4F6' },
   photoFallback: { alignItems: 'center', justifyContent: 'center' },
   photoFallbackText: { color: '#999' },
   flagBanner: { backgroundColor: '#FEF3C7', borderRadius: 8, padding: 8, marginBottom: 8 },
