@@ -131,7 +131,7 @@ export default function AddCarScreen() {
   // the web build a failed save looked like the button was simply dead.
   const [formError, setFormError] = useState<string | null>(null);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   // Guards against a slow, older suggestions response overwriting a
   // newer one when someone types quickly.
   const makeRequestId = useRef(0);

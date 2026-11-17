@@ -282,7 +282,7 @@ export default function MyTreeScreen() {
           </View>
         )}
       </View>
-    ) : null;
+    ) : undefined;
 
   return (
     <SafeAreaView style={styles.safe}>

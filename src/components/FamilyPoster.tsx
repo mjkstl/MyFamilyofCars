@@ -13,7 +13,7 @@ interface Props {
  * it's the Phase 1 "one basic layout" template; more styles come in
  * Phase 2/3 monetization tiers.
  */
-const FamilyPoster = forwardRef<View, Props>(({ familyName, cars }, ref) => {
+const FamilyPoster = forwardRef<React.ComponentRef<typeof View>, Props>(({ familyName, cars }, ref) => {
   return (
     <View ref={ref} style={styles.poster} collapsable={false}>
       <Text style={styles.title}>{familyName}</Text>
