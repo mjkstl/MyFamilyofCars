@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { PARTNERS } from '@/config/partners';
 
@@ -16,17 +17,33 @@ export type AnalyticsEvent =
 
 type SafeProperties = Record<string, string | number | boolean | null>;
 
-export async function trackEvent(eventName: AnalyticsEvent, properties: SafeProperties = {}, familyId?: string | null) {
-  const { error } = await supabase.from('analytics_events').insert({
-    event_name: eventName,
-    family_id: familyId ?? null,
-    properties,
-  });
-  if (error) throw error;
+/**
+ * Analytics is best-effort and must NEVER break the action it describes.
+ * It runs after the real work (family created, car saved…) has already
+ * succeeded, so a failure here used to show the user an error for
+ * something that had actually worked. Returns whether the event was saved;
+ * never throws.
+ */
+export async function trackEvent(eventName: AnalyticsEvent, properties: SafeProperties = {}, familyId?: string | null): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('analytics_events').insert({
+      event_name: eventName,
+      family_id: familyId ?? null,
+      properties,
+    });
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    if (__DEV__) console.warn(`[analytics] ${eventName} not recorded:`, error);
+    return false;
+  }
 }
 
 export function getReferralFromUrl(): { sourceType: 'referral_code' | 'url_parameter'; partnerId: string | null; campaignId: string | null } | null {
-  if (typeof window === 'undefined') return null;
+  // Web only. On iOS/Android `window` exists but `window.location` does
+  // not, so the old `typeof window` check let this read
+  // `undefined.search` and crash "Create" on a real iPhone.
+  if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.location) return null;
   const params = new URLSearchParams(window.location.search);
   const code = params.get('ref')?.trim().toLowerCase();
   const campaign = params.get('campaign')?.trim().slice(0, 80) || null;
@@ -34,7 +51,17 @@ export function getReferralFromUrl(): { sourceType: 'referral_code' | 'url_param
   return { sourceType: code ? 'referral_code' : 'url_parameter', partnerId: code || null, campaignId: campaign };
 }
 
-export async function recordReferralAttribution(familyId: string) {
+/** Best-effort, like trackEvent: never throws. */
+export async function recordReferralAttribution(familyId: string): Promise<boolean> {
+  try {
+    return await saveReferralAttribution(familyId);
+  } catch (error) {
+    if (__DEV__) console.warn('[analytics] referral attribution not recorded:', error);
+    return false;
+  }
+}
+
+async function saveReferralAttribution(familyId: string): Promise<boolean> {
   const referral = getReferralFromUrl();
   if (!referral) return false;
   const partner = referral.partnerId ? PARTNERS.find((item) => item.code === referral.partnerId && item.active) : null;
