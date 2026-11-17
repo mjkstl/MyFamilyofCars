@@ -29,6 +29,10 @@ export const colors = {
   text: '#334155',
   muted: '#64748B',
   faint: '#94A3B8',
+  // Placeholder text inside inputs. Same value as `muted`: 4.8:1 contrast
+  // on white (WCAG AA needs 4.5:1). `faint` (2.6:1) and the iOS default
+  // placeholder grey were too light to read on a real iPhone.
+  placeholder: '#64748B',
   border: '#E2E8F0',
   borderStrong: '#CBD5E1',
   surface: '#FFFFFF',

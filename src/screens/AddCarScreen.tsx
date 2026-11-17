@@ -418,7 +418,7 @@ export default function AddCarScreen() {
                   keyboardType="number-pad"
                   maxLength={4}
                   placeholder="1998"
-                  placeholderTextColor={colors.faint}
+                  placeholderTextColor={colors.placeholder}
                 />
               </View>
               <View style={styles.flex}>
@@ -429,7 +429,7 @@ export default function AddCarScreen() {
                   value={make}
                   onChangeText={(text) => void onMakeChange(text)}
                   placeholder="Ford"
-                  placeholderTextColor={colors.faint}
+                  placeholderTextColor={colors.placeholder}
                   autoCorrect={false}
                 />
               </View>
@@ -465,7 +465,7 @@ export default function AddCarScreen() {
               }}
               onFocus={() => void onModelFocus()}
               placeholder="Mustang"
-              placeholderTextColor={colors.faint}
+              placeholderTextColor={colors.placeholder}
               autoCorrect={false}
             />
             {modelSuggestions.length > 0 && (
@@ -539,7 +539,7 @@ export default function AddCarScreen() {
               value={memories}
               onChangeText={setMemories}
               placeholder="Dad’s first new car. It took us on every summer road trip."
-              placeholderTextColor={colors.faint}
+              placeholderTextColor={colors.placeholder}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -578,7 +578,7 @@ export default function AddCarScreen() {
                   value={trim}
                   onChangeText={setTrim}
                   placeholder="e.g. Sport, Touring, Limited"
-                  placeholderTextColor={colors.faint}
+                  placeholderTextColor={colors.placeholder}
                 />
 
                 <Text style={styles.label}>How long was it in the family?</Text>
@@ -603,7 +603,7 @@ export default function AddCarScreen() {
                   value={nickname}
                   onChangeText={setNickname}
                   placeholder="e.g. Old Betsy"
-                  placeholderTextColor={colors.faint}
+                  placeholderTextColor={colors.placeholder}
                 />
 
                 <Text style={styles.label}>Fun fact</Text>
@@ -613,7 +613,7 @@ export default function AddCarScreen() {
                   value={funFact}
                   onChangeText={setFunFact}
                   placeholder="A quirky detail about this car"
-                  placeholderTextColor={colors.faint}
+                  placeholderTextColor={colors.placeholder}
                 />
               </>
             )}

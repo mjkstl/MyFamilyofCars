@@ -13,6 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useFamily } from '@/hooks/useFamily';
 import AppLogoHeader from '@/components/AppLogoHeader';
 import { getInviteTokenFromUrl } from '@/utils/inviteLink';
+import { colors } from '@/theme/tokens';
 
 type Mode = 'choose' | 'create' | 'join';
 
@@ -118,14 +119,14 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
           )}
         </Pressable>
 
-        <TextInput
+        <TextInput placeholderTextColor={colors.placeholder}
           style={styles.input}
           accessibilityLabel="Family name"
           placeholder="Family name (e.g. The Keegans)"
           value={familyName}
           onChangeText={setFamilyName}
         />
-        <TextInput accessibilityLabel="Your name" style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
+        <TextInput placeholderTextColor={colors.placeholder} accessibilityLabel="Your name" style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
         <Text style={styles.reassurance}>Private by default. You choose who can join.</Text>
         {formError ? (
           <View style={styles.errorBanner}>
@@ -151,7 +152,7 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
       {invitedToken ? (
         <Text style={styles.subtitle}>You’ve been invited. Add your name to join and start adding your cars.</Text>
       ) : null}
-      <TextInput
+      <TextInput placeholderTextColor={colors.placeholder}
         style={styles.input}
         accessibilityLabel="Invite code"
         placeholder="Invite code"
@@ -159,7 +160,7 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
         value={inviteCode}
         onChangeText={setInviteCode}
       />
-      <TextInput accessibilityLabel="Your name" style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
+      <TextInput placeholderTextColor={colors.placeholder} accessibilityLabel="Your name" style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
       {formError ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{formError}</Text>

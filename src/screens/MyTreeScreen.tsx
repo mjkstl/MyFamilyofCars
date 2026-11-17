@@ -258,7 +258,7 @@ export default function MyTreeScreen() {
             value={search}
             onChangeText={setSearch}
             placeholder="Search cars or people"
-            placeholderTextColor={colors.faint}
+            placeholderTextColor={colors.placeholder}
             style={styles.searchInput}
           />
         )}

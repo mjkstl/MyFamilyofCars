@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import type { Member } from '@/types/database';
+import { colors } from '@/theme/tokens';
 
 export default function MemberEditModal({
   member,
@@ -42,7 +43,7 @@ export default function MemberEditModal({
           <Pressable style={styles.avatarPicker} onPress={() => void choosePhoto()}>
             {avatarUri ? <Image source={{ uri: avatarUri }} style={styles.avatar} /> : <Text style={styles.avatarText}>Add photo</Text>}
           </Pressable>
-          <TextInput style={styles.input} value={displayName} onChangeText={setDisplayName} placeholder="Name" />
+          <TextInput placeholderTextColor={colors.placeholder} style={styles.input} value={displayName} onChangeText={setDisplayName} placeholder="Name" />
           <Pressable
             style={styles.saveButton}
             disabled={saving || !displayName.trim()}

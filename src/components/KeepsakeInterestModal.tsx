@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, TextInput
 import { supabase } from '@/lib/supabase';
 import { HARDCOVER_FAMILY_BOOK } from '@/config/products';
 import { trackEvent } from '@/services/analytics';
+import { colors } from '@/theme/tokens';
 
 export default function KeepsakeInterestModal({
   visible,
@@ -82,9 +83,9 @@ export default function KeepsakeInterestModal({
                 <Pressable style={[styles.option, format === 'cards' && styles.optionActive]} onPress={() => setFormat('cards')}><Text style={format === 'cards' ? styles.optionTextActive : styles.optionText}>Individual car cards</Text></Pressable>
               </View>
               <Text style={styles.label}>Quantity</Text>
-              <TextInput accessibilityLabel="Optional number of copies" value={copies} onChangeText={setCopies} keyboardType="number-pad" placeholder="Number of copies (optional)" style={styles.input} />
+              <TextInput placeholderTextColor={colors.placeholder} accessibilityLabel="Optional number of copies" value={copies} onChangeText={setCopies} keyboardType="number-pad" placeholder="Number of copies (optional)" style={styles.input} />
               <Text style={styles.label}>Email</Text>
-              <TextInput accessibilityLabel="Email required for notification" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholder="Email for availability updates" style={styles.input} />
+              <TextInput placeholderTextColor={colors.placeholder} accessibilityLabel="Email required for notification" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholder="Email for availability updates" style={styles.input} />
               <Pressable style={styles.consent} onPress={() => setMarketingOptIn((value) => !value)}><Text style={styles.checkbox}>{marketingOptIn ? '☑' : '☐'}</Text><Text style={styles.consentText}>I agree to be contacted about keepsakes.</Text></Pressable>
               <Pressable style={styles.primary} onPress={submit} disabled={saving}>{saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Let me know</Text>}</Pressable>
               <Pressable onPress={onClose}><Text style={styles.cancel}>Not now</Text></Pressable>

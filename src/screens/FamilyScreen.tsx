@@ -22,6 +22,7 @@ import MemberTile from '@/components/MemberTile';
 import MemberEditModal from '@/components/MemberEditModal';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
 import type { Member } from '@/types/database';
+import { colors } from '@/theme/tokens';
 
 export default function FamilyScreen() {
   // This screen has no local stack of its own — it's a bare Tab.Screen.
@@ -149,8 +150,8 @@ export default function FamilyScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Add a family member</Text>
-            <TextInput style={styles.input} placeholder="Name" value={displayName} onChangeText={setDisplayName} />
-            <TextInput
+            <TextInput placeholderTextColor={colors.placeholder} style={styles.input} placeholder="Name" value={displayName} onChangeText={setDisplayName} />
+            <TextInput placeholderTextColor={colors.placeholder}
               style={styles.input}
               placeholder="Relationship (e.g. Mom, Dad, Brother)"
               value={relationshipLabel}

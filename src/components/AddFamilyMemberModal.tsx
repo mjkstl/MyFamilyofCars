@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { colors } from '@/theme/tokens';
 
 export default function AddFamilyMemberModal({
   visible,
@@ -26,8 +27,8 @@ export default function AddFamilyMemberModal({
       <View style={styles.overlay}>
         <View style={styles.card}>
           <Text style={styles.title}>Add family member</Text>
-          <TextInput accessibilityLabel="Family member name" style={styles.input} value={displayName} onChangeText={setDisplayName} placeholder="Name" />
-          <TextInput accessibilityLabel="Relationship to family member" style={styles.input} value={relationship} onChangeText={setRelationship} placeholder="Relationship (optional)" />
+          <TextInput placeholderTextColor={colors.placeholder} accessibilityLabel="Family member name" style={styles.input} value={displayName} onChangeText={setDisplayName} placeholder="Name" />
+          <TextInput placeholderTextColor={colors.placeholder} accessibilityLabel="Relationship to family member" style={styles.input} value={relationship} onChangeText={setRelationship} placeholder="Relationship (optional)" />
           <Pressable disabled={saving || !displayName.trim()} style={styles.save} onPress={() => onSave(displayName.trim(), relationship.trim())}>
             {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Add member</Text>}
           </Pressable>
