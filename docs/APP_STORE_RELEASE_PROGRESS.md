@@ -204,9 +204,10 @@ original request is lost.
   - [ ] Report content UI on car/photo/story surfaces
   - [ ] Family-admin remove-member + immediate access revocation
   - [ ] Accessible Terms / community standards content
-- [ ] **Phase 8 — Sign in with Apple** *(blocked: Malcolm has a free
-      Apple ID but not yet the paid Apple Developer Program enrollment
-      required for this capability + TestFlight)*
+- [ ] **Phase 8 — Sign in with Apple** *(dropped from v1 in Session 2 —
+      email magic link alone does not require it. Apple Developer
+      enrollment itself is deferred until after Phases 2B, 5, 6, 7;
+      see External dependencies.)*
   - [ ] `expo-apple-authentication` wired
   - [ ] Tested via TestFlight (cannot be verified via web/Expo Go)
 - [ ] **Phase 9 — Privacy documentation & inventory**
@@ -219,13 +220,13 @@ original request is lost.
 
 ## External dependencies (Malcolm needs to provide/decide these)
 
-- **Apple Developer Program paid enrollment ($99/year)** — Malcolm has a
-  free Apple ID registered at developer.apple.com but has NOT yet paid
-  for Program enrollment. The free tier does not unlock Sign in with
-  Apple capability, TestFlight distribution, or App Store submission —
-  all of Phase 8 and the manual-TestFlight portion of Phase 10 are
-  blocked until this is paid for. Not urgent yet since several phases
-  come first, but flagging now so it's not a surprise later.
+- **Apple Developer Program paid enrollment ($99/year)** — **deferred by
+  decision (2026-11-17, Session 4).** Malcolm will enroll **as an
+  individual** after Phases 2B, 5, 6 and 7 are complete. Until then:
+  iPhone testing is done in Expo Go (App Store version, SDK 58); no
+  TestFlight, no EAS iOS build, no submission. The manual-TestFlight part
+  of Phase 10 waits for enrollment. (Phase 8 / Sign in with Apple is
+  dropped from v1 — see Session 2.)
 - **Support email/URL** — needed for Settings → Support and for the
   report-content confirmation flow (Phase 7).
 - **Where Privacy Policy / Terms of Use will be publicly hosted** — the
@@ -240,6 +241,79 @@ original request is lost.
 
 *(Newest entry at the top. Each entry: date, what was completed/verified,
 what's next, anything discovered that changes the plan.)*
+
+- **Session 4 — 2026-11-17. Expo SDK 52 → 58 ("Phase 0"), on branch
+  `chore/expo-sdk-upgrade` (not merged).**
+  - **Plan changes from Malcolm:** Apple Developer Program deferred until
+    after Phases 2B, 5, 6, 7, then enroll as an individual; iPhone testing
+    via Expo Go once on the latest SDK. `docs/RELEASE_GUIDE.md` rewritten
+    for this, including a beginner walkthrough for the Expo Go test.
+  - Repo check: local clone matched GitHub `main` at 41837e6 (one commit,
+    2026-11-17 07:12 UTC). Note: the copies of this file and the guide in
+    the claude.ai Project were older than GitHub — GitHub is the source
+    of truth.
+  - Baseline on `main` (SDK 52) before touching anything: typecheck 0,
+    lint 0 errors / 6 warnings, jest 10/10, web build 0.
+  - **Upgrade done one SDK at a time, one commit each:** 53 (React 19.0,
+    RN 0.79) → 54 (React 19.1, RN 0.81, Reanimated 4) → 55 (React 19.2,
+    RN 0.83, New Architecture only) → 56 (RN 0.85, TypeScript 6) → 57
+    (RN 0.86) → 58 (React 19.3, RN 0.88, Gesture Handler 3). SDK 56 is a
+    stepping stone only (known Hermes memory regression, fixed in 57).
+  - **Gate after every step** (from a clean `npm ci`): typecheck 0, lint
+    0 errors / same 6 warnings, jest 10/10, `expo export` web 0, `expo
+    export` iOS JavaScript bundle 0, and a scan for duplicate native/React
+    packages in the lockfile (none, except at SDK 53: two copies of the
+    small JavaScript-only helper `react-native-is-edge-to-edge`, gone
+    from SDK 54 on).
+  - **Root-caused fixes along the way** (details in each commit message):
+    - SDK 53: `expo install --fix` stopped on an `@types/react` 18 peer
+      conflict; dev dependencies aligned by hand.
+    - SDK 54: `babel.config.js` — removed `react-native-reanimated/plugin`
+      (babel-preset-expo 54 adds the worklets plugin itself; keeping both
+      runs it twice). Confirmed the plugin still runs (538 worklets in the
+      iOS bundle). Added `react-native-worklets`.
+    - SDK 55 and 58: stale lockfile entries made npm nest
+      `expo-modules-core` (jest could not find it) and keep a second copy
+      of `react-native-worklets`; SDK 57 and 58: a stale
+      `@react-native/jest-preset` blocked the jest-expo bump. Fixed by
+      removing only those stale lock entries and letting npm re-resolve
+      them. No `--force` / `--legacy-peer-deps`.
+    - SDK 56 (TypeScript 6): removed deprecated `baseUrl` from
+      `tsconfig.json` (paths now `./src/*`), added `"types": ["jest"]`,
+      and `global.fetch` → `globalThis.fetch` in one test.
+    - SDK 58 (React Native 0.87/0.88 strict types): three type-only fixes
+      in `AddCarScreen`, `FamilyPoster`, `MyTreeScreen`.
+    - **SDK 58 runtime crash found by reading the bundle, not by any
+      check:** React Native 0.87 removed `InteractionManager`;
+      `react-native-draggable-flatlist` 4.0.3 (latest, last released May
+      2025) calls it whenever the Reorder Cars list's data changes. Fixed
+      with `patch-package` (`patches/…4.0.3.patch`, `postinstall` script),
+      using `requestIdleCallback` as React Native recommends; library
+      pinned to exactly 4.0.3. 0 references left in the iOS bundle.
+  - **Also verified:** web build's first screen is pixel-identical to
+    `main` (SDK 52) at 390px and 320px (headless Chrome, both builds made
+    the same way). `expo-doctor`: 18 of 20 checks pass; the other 2 need
+    the Expo API, which this sandbox cannot reach.
+  - **NOT verified (needs Malcolm):** anything on a real iPhone — app
+    start in Expo Go, photo picker/camera permissions, drag-to-reorder
+    with Gesture Handler 3, keyboard and scrolling. Also not run: GitHub
+    Actions CI on the branch (runs when the pull request is opened).
+  - **Decisions flagged, not taken:**
+    - *Sequencing:* `react-native-draggable-flatlist` is effectively
+      unmaintained. The patch is a stop-gap; replacing the library (or
+      using up/down buttons on that screen) belongs to the UI track.
+    - *Sequencing:* `expo-file-system`, `expo-notifications`,
+      `expo-sharing`, `react-native-view-shot` and `base64-arraybuffer`
+      are installed but not referenced anywhere in `src/` or `App.tsx`.
+      Left in place (removing them is not part of an SDK upgrade); worth a
+      cleanup pass before the App Store privacy review, since unused
+      native modules still ship in the binary.
+    - *UI track:* screens still use React Native's own `SafeAreaView`,
+      deprecated since RN 0.81 but still present in 0.88. Switching to
+      `react-native-safe-area-context` changes spacing, so it needs a
+      visual pass.
+  - **Next:** Malcolm runs the Expo Go checklist (guide section 3) and
+    merges if it passes. Then Phase 2B.
 
 - **Session 3 — 2026-11-17.** `docs/RELEASE_GUIDE.md` added: the short
   ordered list of what is left and who does it — read it first.
