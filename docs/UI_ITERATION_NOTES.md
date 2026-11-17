@@ -51,6 +51,8 @@ read right on an actual phone. Expect rounds, not a single final pass.
 | 9 | Our Story (`StoryCarCard.tsx`) | Photo gallery width was guessed from the window width and ignored the card's own padding, so photos overhung the card's right edge | 🟡 In progress | Card now measures itself and passes the exact width. Same verification as #7. |
 | 10 | Member car screen (`MemberEditScreen.tsx`, `CarCard.tsx`) | Prev/next arrows floated over the card; "Fun facts coming soon" placeholder on every card (App Review risk); long stories could be cut off | 🟡 In progress | One bottom bar (Reorder, "1 of N", Add); placeholder removed; each page scrolls. Keeps the 4:3 photo box from #6. Same verification as #7. |
 | 11 | Brand | Logo's cartoon cars resembled Pixar's Cars characters | 🟢 Resolved | Replaced 2026-11-16 with an original mark (a road branching into a family tree); app icon, adaptive icon, splash and favicon added. |
+| 12 | All inputs | Placeholder text too faint on a real iPhone (first Expo Go test) | 🟡 In progress | 2026-11-17: new `colors.placeholder` (#64748B, 4.8:1) on all 19 inputs. Root cause: onboarding used the iOS default grey; other screens used `colors.faint` (2.6:1). Needs Malcolm's eye on the phone. |
+| 13 | Add / Edit car (`AddCarScreen.tsx`) | Malcolm, 2026-11-17 (Expo Go): Year and Make should be scroll lists; Trim should sit under Model with a list; Story should be below Fun fact; "How long was it in the family?" wrong for Currently driving; "See ones like it for sale" opened Google Shopping (parts) | 🟡 In progress | Done 2026-11-17 (decisions by Malcolm): slide-up list sheets (`PickerSheet.tsx`) for Year, Make (EPA brands for that year, 1984+; curated `classicMakes.ts` otherwise; "Not listed? Type it") and Trim (EPA engine/transmission options, typing fallback); Model now prefers EPA names so Trim can match; duration question follows status (hidden for Dream car); story after the extra details; Google "All" results. Rendered at 390/320 with faked Supabase+EPA responses. NOT checked: real EPA responses (sandbox has no network to it), whether EPA allows browser requests (web build falls back to typing if not), iPhone feel. |
 
 *(Add new rows as issues are reported. Keep resolved rows — don't delete
 them — so the history of what broke and why stays visible.)*
@@ -60,6 +62,13 @@ them — so the history of what broke and why stays visible.)*
 *(Newest entry at the top. Each entry: date, what was reviewed/changed,
 what's still open, anything discovered that changes how a screen should be
 approached.)*
+
+- **2026-11-17 — first real-iPhone feedback (Expo Go, SDK 58 branch).**
+  Rows 12 and 13 added and worked. Pattern worth remembering: things that
+  look fine in a desktop browser (placeholder grey, typing a year) read
+  very differently on a phone. Also fixed in edit mode: clearing trim,
+  color, story or fun fact now really clears it (empty fields used to be
+  sent as `undefined`, which the update silently skipped).
 
 - **2026-11-16** — Two UI rounds in one session (items #7–#11). Added a
   shared token file (`src/theme/tokens.ts`) so colour, spacing and type

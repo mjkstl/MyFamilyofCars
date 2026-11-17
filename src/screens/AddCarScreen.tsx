@@ -21,6 +21,9 @@ import { useFamily } from '@/hooks/useFamily';
 import { useMembers } from '@/hooks/useMembers';
 import { useCars } from '@/hooks/useCars';
 import { searchMakes, getModelsForMake } from '@/utils/nhtsa';
+import { EPA_FIRST_YEAR, getEpaMakes, getEpaModels, getEpaTrims } from '@/utils/fuelEconomy';
+import { CLASSIC_MAKES } from '@/data/classicMakes';
+import PickerSheet from '@/components/PickerSheet';
 import { CAR_COLORS } from '@/utils/carColors';
 import type { Car, CarStatus, OwnershipDuration } from '@/types/database';
 import AppLogoHeader from '@/components/AppLogoHeader';
@@ -29,8 +32,7 @@ import { openVehicleSearch } from '@/utils/vehicleSearch';
 import { shareInvite } from '@/utils/inviteLink';
 import { colors, font, radius, space, MIN_TAP } from '@/theme/tokens';
 
-const CURRENT_YEAR = new Date().getFullYear();
-const MIN_YEAR = 1885;
+import { CURRENT_YEAR, MIN_YEAR, YEAR_OPTIONS, durationQuestion } from '@/config/carForm';
 const MAX_MODEL_SUGGESTIONS = 6;
 
 const STATUS_OPTIONS: { value: CarStatus; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
@@ -39,6 +41,8 @@ const STATUS_OPTIONS: { value: CarStatus; label: string; icon: keyof typeof Mate
   { value: 'memory', label: 'Memory', icon: 'image-multiple' },
   { value: 'dream', label: 'Dream Car', icon: 'star' },
 ];
+
+type Sheet = 'year' | 'make' | 'trim' | null;
 
 const DURATION_OPTIONS: readonly (readonly [OwnershipDuration, string])[] = [
   ['under_2_years', 'Under 2 years'],
@@ -105,7 +109,7 @@ export default function AddCarScreen() {
   // Open "More details" straight away when editing a car that already
   // has some, so nothing the person entered earlier looks lost.
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(
-    Boolean(editingCar && (editingCar.color || editingCar.trim || editingCar.ownership_duration || editingCar.nickname || editingCar.fun_fact))
+    Boolean(editingCar && (editingCar.color || editingCar.ownership_duration || editingCar.nickname || editingCar.fun_fact))
   );
   const [savedCar, setSavedCar] = useState<FamilyCar | null>(null);
   const [savedCarNumber, setSavedCarNumber] = useState(1);
@@ -126,6 +130,16 @@ export default function AddCarScreen() {
   const [funFact, setFunFact] = useState(editingCar?.fun_fact ?? '');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Which slide-up list is open, and what it is showing.
+  const [sheet, setSheet] = useState<Sheet>(null);
+  const [makeOptions, setMakeOptions] = useState<string[]>([]);
+  const [makeOptionsNote, setMakeOptionsNote] = useState<string | null>(null);
+  const [makeOptionsLoading, setMakeOptionsLoading] = useState(false);
+  // "Not listed? Type it" switches Make to a text box (with the full
+  // NHTSA search as suggestions) for brands the list does not have.
+  const [makeTyped, setMakeTyped] = useState(false);
+  const [trimOptions, setTrimOptions] = useState<string[]>([]);
+  const [trimTyped, setTrimTyped] = useState(false);
   // Validation and save errors render ON SCREEN. They used to go through
   // Alert.alert(), which shows nothing at all on React Native Web — so on
   // the web build a failed save looked like the button was simply dead.
@@ -136,6 +150,7 @@ export default function AddCarScreen() {
   // newer one when someone types quickly.
   const makeRequestId = useRef(0);
   const modelRequestId = useRef(0);
+  const trimRequestId = useRef(0);
 
   const era = deriveEra(year);
   const previewPhotoUri = photoUri ?? editingCar?.photo_url ?? null;
@@ -160,19 +175,83 @@ export default function AddCarScreen() {
   const onMakeChange = async (text: string) => {
     setFormError(null);
     setMake(text);
-    setModel('');
-    setAllModels([]);
+    clearModelAndTrim();
     const requestId = ++makeRequestId.current;
     const results = text.trim().length > 0 ? await searchMakes(text) : [];
     if (requestId === makeRequestId.current) setMakeSuggestions(results);
+  };
+
+  /** A new make (or year) means the old model and trim no longer apply. */
+  const clearModelAndTrim = () => {
+    setModel('');
+    setAllModels([]);
+    clearTrimOptions();
+  };
+
+  const clearTrimOptions = () => {
+    trimRequestId.current += 1;
+    setTrimOptions([]);
+    setTrimTyped(false);
   };
 
   const onModelFocus = async () => {
     setModelFocused(true);
     if (!make.trim() || !era) return;
     const requestId = ++modelRequestId.current;
-    const models = await getModelsForMake(make.trim(), Number(year));
+    // EPA names first (1984+), so the Trim list can match them exactly;
+    // NHTSA for older cars or makes EPA does not know.
+    let models = await getEpaModels(Number(year), make.trim());
+    if (models.length === 0) models = await getModelsForMake(make.trim(), Number(year));
     if (requestId === modelRequestId.current) setAllModels(models);
+  };
+
+  /** Fetches the Trim list for the current year/make/model. Called when a
+   * model is chosen or the Model box loses focus — never from an effect. */
+  const loadTrimOptions = async (forModel: string) => {
+    const requestId = ++trimRequestId.current;
+    setTrimOptions([]);
+    if (!era || !make.trim() || !forModel.trim()) return;
+    const options = await getEpaTrims(Number(year), make.trim(), forModel.trim());
+    if (requestId === trimRequestId.current) setTrimOptions(options);
+  };
+
+  const openMakeSheet = async () => {
+    setSheet('make');
+    const y = Number(year);
+    const requestId = ++makeRequestId.current;
+    if (era && y >= EPA_FIRST_YEAR) {
+      setMakeOptionsLoading(true);
+      const epa = await getEpaMakes(y);
+      if (requestId !== makeRequestId.current) return;
+      setMakeOptionsLoading(false);
+      if (epa.length > 0) {
+        setMakeOptions(epa);
+        setMakeOptionsNote(`Brands sold in the US in ${y}.`);
+        return;
+      }
+    }
+    setMakeOptions([...CLASSIC_MAKES]);
+    setMakeOptionsNote(era ? 'Classic and current brands.' : 'Pick the year first to see only the brands sold that year.');
+  };
+
+  const chooseYear = (value: string) => {
+    setSheet(null);
+    setFormError(null);
+    if (value === year) return;
+    setYear(value);
+    // Same make, different year: the model list and trims must be reloaded.
+    setAllModels([]);
+    clearTrimOptions();
+  };
+
+  const chooseMake = (value: string) => {
+    setSheet(null);
+    setFormError(null);
+    makeRequestId.current += 1;
+    setMakeSuggestions([]);
+    if (value === make) return;
+    setMake(value);
+    clearModelAndTrim();
   };
 
   const pickPhoto = async () => {
@@ -225,6 +304,10 @@ export default function AddCarScreen() {
     setMakeSuggestions([]);
     setAllModels([]);
     setModelFocused(false);
+    setSheet(null);
+    setMakeTyped(false);
+    setTrimOptions([]);
+    setTrimTyped(false);
     setMoreDetailsOpen(false);
     setFormError(null);
     setInviteNotice(null);
@@ -261,15 +344,17 @@ export default function AddCarScreen() {
     try {
       const carDetails = {
         nickname: nickname.trim(),
-        trim: trim.trim() || undefined,
+        // null (not undefined) so clearing a field while editing really
+        // clears it — undefined keys are dropped from the update.
+        trim: trim.trim() || null,
         make: make.trim(),
         model: model.trim(),
         year: yearNum,
         status,
-        ownership_duration: ownershipDuration ?? undefined,
-        color: color ?? undefined,
-        memories: memories.trim() || undefined,
-        fun_fact: funFact.trim() || undefined,
+        ownership_duration: durationQuestion(status) ? ownershipDuration : null,
+        color: color ?? null,
+        memories: memories.trim() || null,
+        fun_fact: funFact.trim() || null,
       };
 
       if (isEditMode && editingCar) {
@@ -403,39 +488,39 @@ export default function AddCarScreen() {
 
             {/* Year + Make share a row; Model gets its own full-width row.
                 Three fields across left ~100px each on a phone, too
-                narrow for names like "Mercedes-Benz" or "Grand Cherokee". */}
+                narrow for names like "Mercedes-Benz" or "Grand Cherokee".
+                Year and Make open slide-up lists (scroll and tap, no
+                typing); Make can switch to typing for unlisted brands. */}
             <View style={[styles.fieldRow, members.length <= 1 && styles.firstLabel]}>
               <View style={styles.yearField}>
                 <Text style={styles.label}>Year</Text>
-                <TextInput
-                  accessibilityLabel="Car year"
-                  style={styles.input}
-                  value={year}
-                  onChangeText={(text) => {
-                    setFormError(null);
-                    setYear(text.replace(/[^0-9]/g, ''));
-                  }}
-                  keyboardType="number-pad"
-                  maxLength={4}
-                  placeholder="1998"
-                  placeholderTextColor={colors.placeholder}
-                />
+                <SelectField label="Car year" value={year} placeholder="1998" onPress={() => setSheet('year')} />
               </View>
               <View style={styles.flex}>
                 <Text style={styles.label}>Make</Text>
-                <TextInput
-                  accessibilityLabel="Car make"
-                  style={styles.input}
-                  value={make}
-                  onChangeText={(text) => void onMakeChange(text)}
-                  placeholder="Ford"
-                  placeholderTextColor={colors.placeholder}
-                  autoCorrect={false}
-                />
+                {makeTyped ? (
+                  <TextInput
+                    accessibilityLabel="Car make"
+                    style={styles.input}
+                    value={make}
+                    onChangeText={(text) => void onMakeChange(text)}
+                    placeholder="Type the brand"
+                    placeholderTextColor={colors.placeholder}
+                    autoCorrect={false}
+                    autoFocus
+                  />
+                ) : (
+                  <SelectField label="Car make" value={make} placeholder="Ford" onPress={() => void openMakeSheet()} />
+                )}
               </View>
             </View>
             {era ? <Text style={styles.hint}>A {era} car</Text> : null}
-            {makeSuggestions.length > 0 && (
+            {makeTyped ? (
+              <Pressable accessibilityRole="button" style={styles.inlineLink} onPress={() => { setMakeTyped(false); setMakeSuggestions([]); void openMakeSheet(); }}>
+                <Text style={styles.inlineLinkText}>Choose the make from the list instead</Text>
+              </Pressable>
+            ) : null}
+            {makeTyped && makeSuggestions.length > 0 && (
               <View style={styles.suggestionBox}>
                 {makeSuggestions.map((m) => (
                   <Pressable
@@ -462,8 +547,10 @@ export default function AddCarScreen() {
               onChangeText={(text) => {
                 setFormError(null);
                 setModel(text);
+                if (trimOptions.length > 0) clearTrimOptions();
               }}
               onFocus={() => void onModelFocus()}
+              onBlur={() => void loadTrimOptions(model)}
               placeholder="Mustang"
               placeholderTextColor={colors.placeholder}
               autoCorrect={false}
@@ -478,12 +565,33 @@ export default function AddCarScreen() {
                     onPress={() => {
                       setModel(m);
                       setModelFocused(false);
+                      void loadTrimOptions(m);
                     }}
                   >
                     <Text style={styles.suggestion}>{m}</Text>
                   </Pressable>
                 ))}
               </View>
+            )}
+
+            {/* Trim sits right under Model because it narrows the same
+                choice. When EPA has options for this year/make/model it
+                is a list; otherwise (older cars, typed names) a text box. */}
+            <Text style={styles.label}>Trim (optional)</Text>
+            {trimOptions.length > 0 && !trimTyped ? (
+              <>
+                <SelectField label="Car trim" value={trim} placeholder="Choose engine / transmission" onPress={() => setSheet('trim')} />
+                <Text style={styles.hint}>Options come from the EPA list for this model.</Text>
+              </>
+            ) : (
+              <TextInput
+                accessibilityLabel="Car trim"
+                style={styles.input}
+                value={trim}
+                onChangeText={setTrim}
+                placeholder="e.g. Sport, Touring, Limited"
+                placeholderTextColor={colors.placeholder}
+              />
             )}
 
             <Text style={styles.label}>What is this car to you?</Text>
@@ -530,28 +638,13 @@ export default function AddCarScreen() {
             </Pressable>
             <Text style={styles.hint}>Opens an image search in your browser. Save a picture you like, then add it here.</Text>
 
-            {/* The story is the heart of the app, so it is always visible
-                rather than tucked under "More details". */}
-            <Text style={styles.label}>The story (optional)</Text>
-            <TextInput
-              accessibilityLabel="Car story"
-              style={[styles.input, styles.storyInput]}
-              value={memories}
-              onChangeText={setMemories}
-              placeholder="Dad’s first new car. It took us on every summer road trip."
-              placeholderTextColor={colors.placeholder}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ expanded: moreDetailsOpen }}
               style={styles.moreDetailsToggle}
               onPress={() => setMoreDetailsOpen((open) => !open)}
             >
-              <Text style={styles.moreDetailsText}>{moreDetailsOpen ? 'Hide extra details' : 'Add color, trim, nickname…'}</Text>
+              <Text style={styles.moreDetailsText}>{moreDetailsOpen ? 'Hide extra details' : 'Add color, nickname, fun fact…'}</Text>
               <MaterialCommunityIcons name={moreDetailsOpen ? 'chevron-up' : 'chevron-down'} size={22} color={colors.primary} />
             </Pressable>
             {moreDetailsOpen && (
@@ -571,30 +664,24 @@ export default function AddCarScreen() {
                   ))}
                 </View>
 
-                <Text style={styles.label}>Trim</Text>
-                <TextInput
-                  accessibilityLabel="Car trim"
-                  style={styles.input}
-                  value={trim}
-                  onChangeText={setTrim}
-                  placeholder="e.g. Sport, Touring, Limited"
-                  placeholderTextColor={colors.placeholder}
-                />
-
-                <Text style={styles.label}>How long was it in the family?</Text>
-                <View style={styles.chipRow}>
-                  {DURATION_OPTIONS.map(([value, label]) => (
-                    <Pressable
-                      key={value}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: ownershipDuration === value }}
-                      onPress={() => setOwnershipDuration(value)}
-                      style={[styles.chip, ownershipDuration === value && styles.chipSelected]}
-                    >
-                      <Text style={[styles.chipText, ownershipDuration === value && styles.chipTextSelected]}>{label}</Text>
-                    </Pressable>
-                  ))}
-                </View>
+                {durationQuestion(status) ? (
+                  <>
+                    <Text style={styles.label}>{durationQuestion(status)}</Text>
+                    <View style={styles.chipRow}>
+                      {DURATION_OPTIONS.map(([value, label]) => (
+                        <Pressable
+                          key={value}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: ownershipDuration === value }}
+                          onPress={() => setOwnershipDuration(ownershipDuration === value ? null : value)}
+                          style={[styles.chip, ownershipDuration === value && styles.chipSelected]}
+                        >
+                          <Text style={[styles.chipText, ownershipDuration === value && styles.chipTextSelected]}>{label}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </>
+                ) : null}
 
                 <Text style={styles.label}>Nickname</Text>
                 <TextInput
@@ -618,6 +705,23 @@ export default function AddCarScreen() {
               </>
             )}
 
+            {/* The story is the heart of the app, so it is always visible
+                rather than tucked under "More details". It sits after
+                the extra details (just below Fun fact when they are
+                open) so the form ends on the story, then Save. */}
+            <Text style={styles.label}>The story (optional)</Text>
+            <TextInput
+              accessibilityLabel="Car story"
+              style={[styles.input, styles.storyInput]}
+              value={memories}
+              onChangeText={setMemories}
+              placeholder="Dad’s first new car. It took us on every summer road trip."
+              placeholderTextColor={colors.placeholder}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+
             {/* A second, full-width Save at the end of the form: after
                 scrolling a long form, people look down for the button,
                 not back up to the header. */}
@@ -631,7 +735,66 @@ export default function AddCarScreen() {
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+
+      <PickerSheet
+        visible={sheet === 'year'}
+        title="Year"
+        options={YEAR_OPTIONS}
+        selected={year}
+        onSelect={chooseYear}
+        onClose={() => setSheet(null)}
+      />
+      <PickerSheet
+        visible={sheet === 'make'}
+        title="Make"
+        options={makeOptions}
+        selected={make}
+        searchable
+        loading={makeOptionsLoading}
+        note={makeOptionsNote}
+        onSelect={chooseMake}
+        onClose={() => setSheet(null)}
+        manualLabel="Not listed? Type it"
+        onManual={() => {
+          setSheet(null);
+          setMakeTyped(true);
+        }}
+      />
+      <PickerSheet
+        visible={sheet === 'trim'}
+        title="Trim"
+        note={`EPA engine / transmission options for the ${year} ${make} ${model}.`}
+        options={trimOptions}
+        selected={trim}
+        onSelect={(value) => {
+          setTrim(value);
+          setSheet(null);
+        }}
+        onClose={() => setSheet(null)}
+        manualLabel="Not listed? Type it"
+        onManual={() => {
+          setSheet(null);
+          setTrimTyped(true);
+        }}
+      />
     </SafeAreaView>
+  );
+}
+
+/** Looks like a text box but opens a list when tapped. */
+function SelectField({ label, value, placeholder, onPress }: { label: string; value: string; placeholder: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value || 'not chosen'}. Opens a list.`}
+      style={[styles.input, styles.selectField]}
+      onPress={onPress}
+    >
+      <Text style={[styles.selectText, !value && styles.selectPlaceholder]} numberOfLines={1}>
+        {value || placeholder}
+      </Text>
+      <MaterialCommunityIcons name="chevron-down" size={20} color={colors.muted} />
+    </Pressable>
   );
 }
 
@@ -688,6 +851,11 @@ const styles = StyleSheet.create({
     minHeight: MIN_TAP + 4,
   },
   storyInput: { minHeight: 110 },
+  selectField: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  selectText: { flex: 1, fontSize: font.body, color: colors.ink },
+  selectPlaceholder: { color: colors.placeholder },
+  inlineLink: { minHeight: MIN_TAP, justifyContent: 'center' },
+  inlineLinkText: { color: colors.primary, fontSize: font.small, fontWeight: '700' },
   fieldRow: { flexDirection: 'row', gap: space.md },
   yearField: { width: 104 },
 
