@@ -6,14 +6,14 @@ describe('NHTSA lookups', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('never throws when the service is down — suggestions are optional', async () => {
-    global.fetch = jest.fn(() => Promise.reject(new Error('offline'))) as unknown as typeof fetch;
+    globalThis.fetch = jest.fn(() => Promise.reject(new Error('offline'))) as unknown as typeof fetch;
     await expect(searchMakes('Fo')).resolves.toEqual([]);
     await expect(getModelsForMake('Ford', 1998)).resolves.toEqual([]);
   });
 
   it('filters makes by prefix and downloads the full list only once', async () => {
     const fetchMock = jest.fn(() => okJson({ Results: [{ Make_Name: 'FORD' }, { Make_Name: 'FERRARI' }, { Make_Name: 'TOYOTA' }] }));
-    global.fetch = fetchMock as unknown as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
     await expect(searchMakes('fo')).resolves.toEqual(['FORD']);
     await expect(searchMakes('fe')).resolves.toEqual(['FERRARI']);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -24,7 +24,7 @@ describe('NHTSA lookups', () => {
   });
 
   it('returns de-duplicated, sorted models', async () => {
-    global.fetch = jest.fn(() => okJson({ Results: [{ Model_Name: 'Mustang' }, { Model_Name: 'Explorer' }, { Model_Name: 'Mustang' }] })) as unknown as typeof fetch;
+    globalThis.fetch = jest.fn(() => okJson({ Results: [{ Model_Name: 'Mustang' }, { Model_Name: 'Explorer' }, { Model_Name: 'Mustang' }] })) as unknown as typeof fetch;
     await expect(getModelsForMake('Ford', 1998)).resolves.toEqual(['Explorer', 'Mustang']);
   });
 });
