@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Car, CarInsert } from '@/types/database';
 import { trackEvent } from '@/services/analytics';
+import { featureFlags } from '@/config/featureFlags';
 
 export function useCars(memberId: string | undefined) {
   const [cars, setCars] = useState<Car[]>([]);
@@ -47,6 +48,9 @@ export function useCars(memberId: string | undefined) {
    * their car.
    */
   const runPhotoQualityCheck = useCallback(async (photoUrl: string): Promise<'approved' | 'flagged' | 'pending'> => {
+    // Phase 3 release gate: with the flag off, return before any network
+    // call so no photo is ever sent to the third-party AI provider.
+    if (!featureFlags.aiPhotoClassificationEnabled) return 'pending';
     try {
       const { data, error: fnErr } = await supabase.functions.invoke('check-photo', {
         body: { photoUrl },

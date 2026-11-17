@@ -109,7 +109,10 @@ original request is lost.
 - [ ] **Phase 2 — RLS & privacy fixes** *(split into 2A and 2B — each
       independently completable, per the "never leave things half-done"
       rule)*
-  - [x] **Phase 2A — Family access lockdown: COMPLETE, verified.**
+  - [ ] **Phase 2A — Family access lockdown: code complete, migration
+        0007 applied on live Supabase, but NOT verified — an out-of-band
+        policy (`families_select_any_authenticated`) currently re-opens
+        the hole. See Session 2 in the log. Needs migration 0008.**
     - [x] New migration `0007_secure_family_invite_access.sql`:
           - Drops the broad `"families can be found by invite code"`
             policy (`invite_code is not null` was true for every row —
@@ -176,6 +179,10 @@ original request is lost.
         (`src/config/featureFlags.ts` + `src/hooks/useCars.ts` short-
         circuit — no network call to check-photo happens at all when
         the flag is off). Verified: `npx tsc --noEmit` clean.
+        **Correction 2026-11-16:** this was not actually present in the
+        repo when re-checked (see Session 2 in the log). It has now been
+        re-implemented and verified (typecheck, lint, test, web build
+        all exit 0).
 
 **Phase 3: COMPLETE.**
 - [ ] **Phase 4 — Settings shell + legal placeholders**
@@ -235,6 +242,103 @@ original request is lost.
 
 *(Newest entry at the top. Each entry: date, what was completed/verified,
 what's next, anything discovered that changes the plan.)*
+
+- **Session 2 (continued) — 2026-11-16, policy audit + migration 0008.**
+  Ran a read-only `pg_policies` query on live Supabase (35 policies).
+  Findings beyond the one already logged below:
+  - `members_insert_self_or_family` (hand-made) let any signed-in
+    session insert ITSELF into any family whose id it knew — no invite
+    needed. It was also the only reason invite-joining worked, because
+    the migration-defined insert policy only admits the creator or an
+    existing member.
+  - "members can be updated by family members" has no WITH CHECK, so a
+    member could re-point their own row at another family.
+  - The remaining hand-made policies (`cars_*_family_only`,
+    `families_insert_own`, `families_update_members_only`,
+    `family_shares_*`, `members_select/update_family_only`,
+    `car_facts_select_all`) duplicate or match the strict ones — left
+    alone. Storage policies (public read, any-session upload/update)
+    are too broad but belong to Phase 2B.
+  **Written: `supabase/migrations/0008_close_family_access_gaps.sql`**
+  — drops the two loose policies, adds `join_family_with_invite()`
+  (server-side, invite-validated, idempotent join) and a trigger making
+  `members.family_id` immutable. Client: `useFamily.joinFamily` now
+  calls the new function, with a fallback to the old flow while 0008 is
+  not yet applied (remove the fallback once 0008 is confirmed live).
+  **Verified in a local Postgres 16 stand-in** (Supabase `auth` stubbed,
+  migrations 0001–0007 applied, the two hand-made policies recreated):
+  both holes reproduced BEFORE 0008; after it, 18 of 18 checks pass
+  (stranger sees 0 families/members; direct insert refused; bad code,
+  blank name, revoked token and signed-out caller refused; valid invite
+  joins; repeat call returns the same member; create-family, add-relative
+  and member-edit still work; family_id change refused; file re-runs
+  cleanly). **NOT yet verified: live Supabase — 0008 has not been
+  applied there.** Deploy order: push app code first, then run 0008,
+  then repeat the stranger/join checks against the live project.
+  **UI track, same session:** replaced the logo (the old one resembled
+  Pixar's Cars characters) with an original mark — a road that branches
+  into a family tree — and added the missing `assets/icon.png`, plus
+  Android adaptive icon, splash and favicon (wired in `app.json`).
+  Second UI round on the member car screen and Our Story.
+
+- **Session 2 — 2026-11-16 (review after a ~6-week pause).** Mostly a
+  UI-track session (see "UI track" note at the end of this entry), but
+  it surfaced four release-gate facts that change the plan:
+  1. **Phase 3 was marked COMPLETE but was not in the repo.**
+     `src/config/featureFlags.ts` did not exist and `useCars.ts` still
+     called the `check-photo` Edge Function on every photo upload.
+     Re-implemented this session: flag file added,
+     `runPhotoQualityCheck` returns `'pending'` before any network call
+     when the flag is off. Verified by typecheck/lint/test/web build
+     (all exit 0). Lesson: this doc's checkboxes were trusted over the
+     code — from now on verify a "complete" phase against the repo
+     before building on it.
+  2. **Phase 2A is applied on live Supabase, but is currently defeated
+     by a policy that is not in any migration.** Checked in the
+     dashboard: `lookup_invite` and `revoke_and_rotate_invite` exist and
+     the old "families can be found by invite code" policy is gone, so
+     migration 0007 ran. HOWEVER the `families` table also has a policy
+     named `families_select_any_authenticated` — `for select to public
+     using (auth.uid() is not null)` — which lets ANY signed-in session
+     (anonymous ones included) read every family row, invite token
+     included. Postgres ORs permissive policies together, so this one
+     policy re-opens exactly the hole 0007 closed. It was created
+     directly in the dashboard (it appears in no file under
+     `supabase/migrations/`), as were `families_insert_own`,
+     `families_update_members_only` and four `cars_*_family_only`
+     policies. **Phase 2A is therefore NOT verified. Next step: list
+     every live policy (read-only query on `pg_policies`), then write
+     additive migration 0008 that drops the over-broad ones, and re-test
+     that a non-member cannot `select` a family.**
+  3. **NEW gate — Expo SDK upgrade (call it Phase 0).** Since
+     2026-04-28 App Store Connect only accepts builds made with
+     Xcode 26 / the iOS 26 SDK; Expo's guidance is SDK 54 at minimum and
+     the current release is SDK 58. This project is on SDK 52, so it
+     cannot be submitted, and Expo Go on a physical iPhone no longer
+     runs it. The app has also never been run as a native iOS build.
+     Upgrade one SDK version at a time, verifying after each.
+  4. **Phase 8 (Sign in with Apple) can leave v1 scope.** Guideline 4.8
+     only applies when an app offers a third-party/social login. With
+     email magic link as the only sign-in, it does not apply. The $99
+     Apple Developer Program fee is still required for TestFlight and
+     submission.
+  Also noted: `app.json` points at `./assets/icon.png`, which does not
+  exist (only `logo.png` does) — a native build needs a real 1024px
+  icon; `ios.supportsTablet` is `true`, which puts an undesigned iPad
+  layout in front of App Review (recommend `false` for v1); and the
+  uncommitted `package-lock.json` in the working folder fails `npm ci`
+  (out of sync on `@emnapi/*`) — do not commit it as-is.
+  **UI track (separate from the release gate, do not conflate):** added
+  `src/theme/tokens.ts`; reworked the Family Tree home screen, the Add
+  Car form and its success screen, and the member tile; fixed five
+  bugs (invite on the success screen shared a null legacy code; "new
+  invite link" did nothing on web; a car photo could not be replaced;
+  empty-state text named a tab that no longer exists; errors were
+  shown via `Alert.alert`, which is invisible on web). Web invite links
+  now open "Join a family" with the code pre-filled.
+  **Revised order of work:** pay Apple Developer fee → policy audit +
+  migration 0008 → Expo SDK upgrade + first real iPhone build → 2B → 4
+  → 5 → 6 → 7 → 9 → 10.
 
 - **Session 1 (continued)** — Phase 2A (family access lockdown) fully
   implemented and verified via typecheck/lint/build (all real exit

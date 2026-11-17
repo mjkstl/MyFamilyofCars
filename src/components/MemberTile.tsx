@@ -1,37 +1,50 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { Member } from '@/types/database';
 import type { FamilyCar } from '@/hooks/useAllFamilyCars';
+import { colors, font, radius, space, cardShadow } from '@/theme/tokens';
+
+/** How many car thumbnails fit across one tile at phone width. The old
+ * tile laid out four fixed 63px thumbs (270px) inside a ~160px tile, so
+ * they spilled into the neighbouring column on a real phone. Three
+ * flexible thumbs always fit, whatever the screen width. */
+const MAX_THUMBS = 3;
 
 export default function MemberTile({
   member,
   cars = [],
   onPress,
   onEdit,
-  onReorder,
 }: {
   member: Member;
   cars?: FamilyCar[];
   onPress: () => void;
   onEdit?: () => void;
+  /** No longer used by the tile (reordering lives on the member's own
+   * car screen). Kept in the type only so the retired FamilyScreen,
+   * which still passes it, keeps compiling. */
   onReorder?: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const initials = member.display_name
     .split(' ')
+    .filter(Boolean)
     .map((p) => p[0])
     .slice(0, 2)
     .join('')
     .toUpperCase();
 
-  // Collapsed: a quick preview row of up to 4 thumbnails, matching the
-  // original compact tile. Expanded: every car this member owns, each
-  // one stacked below the last.
-  const previewCars = expanded ? cars : cars.slice(0, 4);
+  const shown = cars.slice(0, MAX_THUMBS);
+  const hiddenCount = cars.length - shown.length;
+  const carCountLabel = cars.length === 0 ? 'No cars yet' : `${cars.length} ${cars.length === 1 ? 'car' : 'cars'}`;
 
   return (
-    <Pressable style={styles.tile} onPress={onPress}>
+    <Pressable
+      style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${member.display_name}, ${carCountLabel}. Open their cars.`}
+    >
       <View>
         {member.avatar_url ? (
           <Image source={{ uri: member.avatar_url }} style={styles.avatar} />
@@ -41,60 +54,49 @@ export default function MemberTile({
           </View>
         )}
         {onEdit ? (
-          <Pressable accessibilityLabel={`Edit ${member.display_name}`} style={styles.editBadge} onPress={onEdit}>
-            <Text style={styles.editBadgeText}>✎</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${member.display_name}`}
+            style={styles.editBadge}
+            hitSlop={10}
+            onPress={onEdit}
+          >
+            <MaterialCommunityIcons name="pencil" size={14} color={colors.primary} />
           </Pressable>
         ) : null}
       </View>
-      <Text style={styles.name} numberOfLines={1}>
-        {member.display_name}
+
+      <Text style={styles.name} numberOfLines={1}>{member.display_name}</Text>
+      <Text style={styles.meta} numberOfLines={1}>
+        {member.relationship ? `${member.relationship} · ${carCountLabel}` : carCountLabel}
       </Text>
-      {member.relationship ? (
-        <Text style={styles.relationship} numberOfLines={1}>
-          {member.relationship}
-        </Text>
-      ) : null}
 
-      {cars.length > 0 && (
-        <View style={styles.branchWrap}>
-          <View style={styles.branchStem} />
-          <View style={styles.branchLine} />
-          <View style={styles.branchCars}>
-          <View style={expanded ? styles.carThumbColumn : styles.carThumbRow}>
-            {previewCars.map((car) => (
-              <View key={car.id} style={[styles.carThumbFrame, expanded && styles.carThumbFrameExpanded]}>
+      {cars.length > 0 ? (
+        <View style={styles.thumbRow}>
+          {shown.map((car, index) => {
+            const isLastWithMore = index === shown.length - 1 && hiddenCount > 0;
+            return (
+              <View key={car.id} style={styles.thumbFrame}>
                 {car.photo_url ? (
-                  <Image source={{ uri: car.photo_url }} style={styles.carThumb} resizeMode="contain" />
+                  <Image source={{ uri: car.photo_url }} style={styles.thumb} resizeMode="cover" />
                 ) : (
-                  <View style={styles.carThumbFallback} />
+                  <View style={styles.thumbFallback}>
+                    <MaterialCommunityIcons name="car-side" size={18} color={colors.faint} />
+                  </View>
                 )}
-                <Text style={styles.carThumbLabel} numberOfLines={1}>
-                  {car.year} {car.make} {car.model}
-                </Text>
+                {isLastWithMore ? (
+                  <View style={styles.moreOverlay}>
+                    <Text style={styles.moreText}>+{hiddenCount}</Text>
+                  </View>
+                ) : null}
               </View>
-            ))}
-          </View>
-
-          {cars.length > 4 && (
-            <Pressable
-              accessibilityLabel={expanded ? 'Show fewer cars' : `Show all ${cars.length} cars`}
-              style={styles.expandButton}
-              onPress={() => setExpanded((v) => !v)}
-            >
-              <MaterialCommunityIcons
-                name={expanded ? 'chevron-up' : 'chevron-down'}
-                size={20}
-                color="#92400E"
-              />
-            </Pressable>
-          )}
-
-          {expanded && onReorder && cars.length > 1 && (
-            <Pressable style={styles.reorderLink} onPress={onReorder}>
-              <Text style={styles.reorderLinkText}>Reorder cars</Text>
-            </Pressable>
-          )}
-          </View>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={styles.emptyStrip}>
+          <MaterialCommunityIcons name="plus" size={14} color={colors.primary} />
+          <Text style={styles.emptyStripText}>Add a car</Text>
         </View>
       )}
     </Pressable>
@@ -102,36 +104,64 @@ export default function MemberTile({
 }
 
 const styles = StyleSheet.create({
-  tile: { width: '47%', alignItems: 'center', marginBottom: 20 },
-  avatar: { width: 88, height: 88, borderRadius: 44, marginBottom: 8 },
-  avatarFallback: { backgroundColor: '#0F766E', alignItems: 'center', justifyContent: 'center' },
-  avatarInitials: { color: '#fff', fontSize: 28, fontWeight: '700' },
-  editBadge: { position: 'absolute', right: -4, bottom: 2, width: 28, height: 28, borderRadius: 14, backgroundColor: '#F97316', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
-  editBadgeText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  name: { fontFamily: 'Trebuchet MS', fontSize: 15, fontWeight: '600' },
-  relationship: { fontSize: 12, color: '#888' },
-  carThumbRow: { flexDirection: 'row', gap: 6, marginTop: 10 },
-  carThumbColumn: { flexDirection: 'column', gap: 6, marginTop: 10, width: '100%' },
-  carThumbFrame: { width: 63, height: 45, borderRadius: 8, overflow: 'hidden', backgroundColor: '#E2E8F0' },
-  carThumbFrameExpanded: { width: '100%', height: 70 },
-  carThumb: { width: '100%', height: '100%' },
-  carThumbFallback: { flex: 1, backgroundColor: '#CBD5E1' },
-  carThumbLabel: { fontSize: 10, color: '#475569', marginTop: 3, maxWidth: 63 },
-  branchWrap: { position: 'relative', width: '100%', alignItems: 'center' },
-  branchStem: { position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: '#94A3B8' },
-  branchLine: { position: 'absolute', top: 28, left: '50%', right: 0, height: 2, backgroundColor: '#94A3B8' },
-  branchCars: { width: '100%', alignItems: 'center' },
-  // "Brown" down-arrow per the design note — a warm amber-brown rather
-  // than the app's usual blue, so it reads as its own distinct control.
-  expandButton: {
-    marginTop: 6,
-    width: 32,
-    height: 24,
-    borderRadius: 8,
-    backgroundColor: '#FEF3C7',
+  tile: {
+    width: '48%',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: space.lg,
+    paddingHorizontal: space.md,
+    marginBottom: space.md,
+    ...cardShadow,
+  },
+  tilePressed: { opacity: 0.85 },
+  avatar: { width: 72, height: 72, borderRadius: 36, marginBottom: space.sm },
+  avatarFallback: { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  avatarInitials: { color: colors.primaryDark, fontSize: 24, fontWeight: '800' },
+  editBadge: {
+    position: 'absolute',
+    right: -6,
+    bottom: 4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  name: { fontFamily: font.brandFamily, fontSize: font.body, fontWeight: '700', color: colors.ink, maxWidth: '100%' },
+  meta: { fontSize: font.tiny, color: colors.muted, marginTop: 2, maxWidth: '100%' },
+  thumbRow: { flexDirection: 'row', gap: space.xs, marginTop: space.md, alignSelf: 'stretch' },
+  thumbFrame: { flex: 1, height: 40, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: colors.surfaceAlt },
+  thumb: { width: '100%', height: '100%' },
+  thumbFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  moreOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(15,23,42,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  reorderLink: { marginTop: 8 },
-  reorderLinkText: { fontSize: 12, color: '#1D4ED8', fontWeight: '600' },
+  moreText: { color: colors.white, fontWeight: '800', fontSize: font.small },
+  emptyStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xs,
+    alignSelf: 'stretch',
+    height: 40,
+    marginTop: space.md,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.borderStrong,
+  },
+  emptyStripText: { color: colors.primary, fontSize: font.tiny, fontWeight: '700' },
 });

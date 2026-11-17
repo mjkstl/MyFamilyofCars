@@ -6,11 +6,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useFamily } from '@/hooks/useFamily';
 import { useAllFamilyCars, type FamilyCar } from '@/hooks/useAllFamilyCars';
 import StoryCarCard from '@/components/StoryCarCard';
-import AppLogoHeader from '@/components/AppLogoHeader';
 import type { StoryStackParamList } from '@/navigation/RootNavigator';
 import type { Member } from '@/types/database';
 import KeepsakeInterestModal from '@/components/KeepsakeInterestModal';
 import { trackEvent } from '@/services/analytics';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { colors, font, radius, space, MIN_TAP } from '@/theme/tokens';
 
 type SortMode = 'added' | 'year' | 'person' | 'status';
 type StoryNav = NativeStackNavigationProp<StoryStackParamList, 'Storybook'>;
@@ -62,7 +63,7 @@ export default function StorybookScreen() {
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" /></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
   const openInterest = () => {
@@ -70,62 +71,103 @@ export default function StorybookScreen() {
     void trackEvent('keepsake_interest_opened', {}, family?.id);
   };
 
+  /** The story list only knows each car's owner by id and name, so build
+   * the minimal Member the car screens need to open. */
+  const memberFor = (car: FamilyCar): Member => ({
+    id: car.member_id,
+    family_id: family?.id ?? '',
+    display_name: car.member_display_name,
+    relationship: null,
+    avatar_url: null,
+    user_id: null,
+    parent_member_id: null,
+    parent_link_confidence: null,
+    parent_link_confirmed: false,
+    created_at: car.created_at,
+  });
+
+  const hasCars = sortedCars.length > 0;
+  const storyCount = cars.filter((car) => car.memories).length;
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
-        <AppLogoHeader compact />
-        <Text style={styles.heading}>Our Story</Text>
+        {/* The navigation bar already says "Our Story", so this screen
+            opens on the family's own name rather than repeating the
+            title under a large logo. */}
+        <Text style={styles.heading} accessibilityRole="header">{family?.name ?? 'Our Story'}</Text>
         <Text style={styles.intro}>
-          The cars your family has loved, remembered in the order that feels most meaningful.
+          {hasCars
+            ? `${cars.length} ${cars.length === 1 ? 'car' : 'cars'} · ${storyCount} ${storyCount === 1 ? 'story' : 'stories'} told so far`
+            : 'The cars your family has loved, and the stories that go with them.'}
         </Text>
-        <Pressable style={styles.printButton} accessibilityRole="button" onPress={() => { void trackEvent('print_preview_opened', {}, family?.id); navigation.navigate('PrintPreview'); }}>
-          <Text style={styles.printButtonText}>Create a keepsake</Text>
-        </Pressable>
-        <Text style={styles.keepsakeCopy}>Turn your family’s cars and stories into a printed book.</Text>
-        <Pressable style={styles.interestButton} accessibilityRole="button" onPress={openInterest}>
-          <Text style={styles.interestButtonText}>Tell me when keepsakes are ready</Text>
-        </Pressable>
-        <Text style={styles.sortLabel}>Arrange the story by</Text>
-        <View style={styles.sortRow}>
-          {([
-            ['added', 'Date added'],
-            ['year', 'Year'],
-            ['person', 'Person'],
-            ['status', 'Status'],
-          ] as const).map(([value, label]) => (
-            <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: sortMode === value }} onPress={() => setSortMode(value)} style={[styles.sortButton, sortMode === value && styles.sortButtonActive]}>
-              <Text style={[styles.sortText, sortMode === value && styles.sortTextActive]}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-        {sortedCars.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Your story is waiting</Text>
-            <Text style={styles.emptyText}>Add a car to begin your family’s garage story.</Text>
-          </View>
+
+        {hasCars ? (
+          <>
+            <View style={styles.keepsakeCard}>
+              <View style={styles.keepsakeHeader}>
+                <MaterialCommunityIcons name="book-open-page-variant" size={22} color={colors.accent} />
+                <Text style={styles.keepsakeTitle}>Make it a keepsake</Text>
+              </View>
+              <Text style={styles.keepsakeCopy}>See your family’s cars and stories laid out as printable pages.</Text>
+              <Pressable
+                style={styles.printButton}
+                accessibilityRole="button"
+                onPress={() => {
+                  void trackEvent('print_preview_opened', {}, family?.id);
+                  navigation.navigate('PrintPreview');
+                }}
+              >
+                <Text style={styles.printButtonText}>Preview keepsake</Text>
+              </Pressable>
+              <Pressable style={styles.interestButton} accessibilityRole="button" onPress={openInterest}>
+                <Text style={styles.interestButtonText}>Tell me when printed books are ready</Text>
+              </Pressable>
+            </View>
+
+            <Text style={styles.sortLabel}>Arrange by</Text>
+            <View style={styles.sortRow}>
+              {([
+                ['added', 'Date added'],
+                ['year', 'Year'],
+                ['person', 'Person'],
+                ['status', 'Status'],
+              ] as const).map(([value, label]) => (
+                <Pressable
+                  key={value}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: sortMode === value }}
+                  onPress={() => setSortMode(value)}
+                  hitSlop={6}
+                  style={[styles.sortButton, sortMode === value && styles.sortButtonActive]}
+                >
+                  <Text style={[styles.sortText, sortMode === value && styles.sortTextActive]}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {sortedCars.map((car) => (
+              <StoryCarCard
+                key={car.id}
+                car={car}
+                onPress={() => openCar(car)}
+                onEdit={() => treeNavigation.navigate('AddCarForMember', { member: memberFor(car), car })}
+              />
+            ))}
+          </>
         ) : (
-          sortedCars.map((car) => (
-            <StoryCarCard
-              key={car.id}
-              car={car}
-              onPress={() => openCar(car)}
-              onEdit={() => {
-                const member: Member = {
-                  id: car.member_id,
-                  family_id: family?.id ?? '',
-                  display_name: car.member_display_name,
-                  relationship: null,
-                  avatar_url: null,
-                  user_id: null,
-                  parent_member_id: null,
-                  parent_link_confidence: null,
-                  parent_link_confirmed: false,
-                  created_at: car.created_at,
-                };
-                treeNavigation.navigate('AddCarForMember', { member, car });
-              }}
-            />
-          ))
+          <View style={styles.empty}>
+            <MaterialCommunityIcons name="book-open-blank-variant" size={40} color={colors.accent} />
+            <Text style={styles.emptyTitle}>Your story starts with one car</Text>
+            <Text style={styles.emptyText}>Add a car and a line or two about it. It will appear here, ready to share and print.</Text>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.printButton}
+              onPress={() => navigation.getParent()?.navigate('Add Car' as never)}
+            >
+              <Text style={styles.printButtonText}>Add a car</Text>
+            </Pressable>
+          </View>
         )}
       </ScrollView>
       <KeepsakeInterestModal visible={interestOpen} familyId={family?.id} onClose={() => setInterestOpen(false)} />
@@ -134,23 +176,43 @@ export default function StorybookScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  content: { width: '100%', maxWidth: 700, alignSelf: 'center', padding: 18, paddingBottom: 40 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  heading: { color: '#0F172A', fontSize: 30, fontWeight: '800', marginTop: 10 },
-  intro: { color: '#475569', fontSize: 15, lineHeight: 22, marginTop: 7, marginBottom: 14 },
-  printButton: { alignSelf: 'flex-start', backgroundColor: '#1D4ED8', borderRadius: 10, paddingVertical: 11, paddingHorizontal: 16 },
-  printButtonText: { color: '#fff', fontWeight: '800' },
-  keepsakeCopy: { color: '#475569', fontSize: 13, marginTop: 8 },
-  interestButton: { alignSelf: 'flex-start', borderWidth: 1, borderColor: '#1D4ED8', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, marginTop: 9 },
-  interestButtonText: { color: '#1D4ED8', fontWeight: '800' },
-  sortLabel: { color: '#475569', fontSize: 12, fontWeight: '800', marginTop: 20, marginBottom: 8, textTransform: 'uppercase' },
-  sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 16 },
-  sortButton: { borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 16, paddingVertical: 7, paddingHorizontal: 11 },
-  sortButtonActive: { backgroundColor: '#0F766E', borderColor: '#0F766E' },
-  sortText: { color: '#334155', fontWeight: '700', fontSize: 12 },
-  sortTextActive: { color: '#fff' },
-  empty: { backgroundColor: '#fff', borderRadius: 16, padding: 24, marginTop: 12 },
-  emptyTitle: { color: '#0F172A', fontSize: 20, fontWeight: '800' },
-  emptyText: { color: '#475569', marginTop: 6, lineHeight: 20 },
+  safe: { flex: 1, backgroundColor: colors.background },
+  // maxWidth keeps the reading column phone-shaped on tablets / web.
+  content: { width: '100%', maxWidth: 560, alignSelf: 'center', padding: space.lg, paddingBottom: space.xxl * 2 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+  heading: { fontFamily: font.brandFamily, color: colors.ink, fontSize: font.display, fontWeight: '800' },
+  intro: { color: colors.muted, fontSize: font.label, lineHeight: 20, marginTop: space.xs, marginBottom: space.lg },
+  keepsakeCard: { backgroundColor: colors.accentSoft, borderRadius: radius.lg, padding: space.lg },
+  keepsakeHeader: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  keepsakeTitle: { color: colors.ink, fontSize: font.heading, fontWeight: '800' },
+  keepsakeCopy: { color: colors.text, fontSize: font.label, lineHeight: 20, marginTop: space.xs },
+  printButton: {
+    minHeight: MIN_TAP + 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingHorizontal: space.lg,
+    marginTop: space.md,
+    alignSelf: 'stretch',
+  },
+  printButtonText: { color: colors.white, fontWeight: '700', fontSize: font.label },
+  interestButton: { minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center', marginTop: space.xs },
+  interestButtonText: { color: colors.accent, fontWeight: '700', fontSize: font.small, textAlign: 'center' },
+  sortLabel: { color: colors.muted, fontSize: font.tiny, fontWeight: '800', marginTop: space.xl, marginBottom: space.sm, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginBottom: space.lg },
+  sortButton: {
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.pill,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.md,
+    backgroundColor: colors.surface,
+  },
+  sortButtonActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  sortText: { color: colors.text, fontWeight: '600', fontSize: font.small },
+  sortTextActive: { color: colors.white },
+  empty: { backgroundColor: colors.accentSoft, borderRadius: radius.lg, padding: space.xl, marginTop: space.sm, alignItems: 'flex-start' },
+  emptyTitle: { color: colors.ink, fontSize: font.title, fontWeight: '800', marginTop: space.sm },
+  emptyText: { color: colors.text, fontSize: font.label, marginTop: space.xs, lineHeight: 20 },
 });

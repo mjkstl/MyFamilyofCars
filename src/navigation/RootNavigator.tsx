@@ -60,7 +60,12 @@ function TreeStackNavigator() {
       <TreeStack.Screen
         name="AddCarForMember"
         component={AddCarScreen}
+        // AddCarScreen draws its own header bar (Close / title / Save),
+        // so the stack's header is hidden here — showing both stacked
+        // two title bars on top of each other. `title` is still set
+        // because screen readers and the web tab title use it.
         options={({ route }) => ({
+          headerShown: false,
           title: route.params.car
             ? `Edit ${route.params.car.year} ${route.params.car.make} ${route.params.car.model}`
             : `Add a car for ${route.params.member.display_name}`,
@@ -115,7 +120,12 @@ function StoryStackNavigator() {
       <StoryStack.Screen
         name="AddCarForMember"
         component={AddCarScreen}
+        // AddCarScreen draws its own header bar (Close / title / Save),
+        // so the stack's header is hidden here — showing both stacked
+        // two title bars on top of each other. `title` is still set
+        // because screen readers and the web tab title use it.
         options={({ route }) => ({
+          headerShown: false,
           title: route.params.car
             ? `Edit ${route.params.car.year} ${route.params.car.make} ${route.params.car.model}`
             : `Add a car for ${route.params.member.display_name}`,

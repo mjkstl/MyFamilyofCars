@@ -12,15 +12,20 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useFamily } from '@/hooks/useFamily';
 import AppLogoHeader from '@/components/AppLogoHeader';
+import { getInviteTokenFromUrl } from '@/utils/inviteLink';
 
 type Mode = 'choose' | 'create' | 'join';
 
 export default function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
   const { createFamily, joinFamily } = useFamily();
-  const [mode, setMode] = useState<Mode>('create');
+  // Someone who opened an invite link (…/?invite=TOKEN) on the web lands
+  // straight on "Join a family" with the code already filled in, rather
+  // than on "Create family" with a 48-character token to copy and paste.
+  const [invitedToken] = useState(() => getInviteTokenFromUrl());
+  const [mode, setMode] = useState<Mode>(invitedToken ? 'join' : 'create');
   const [name, setName] = useState('');
   const [familyName, setFamilyName] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
+  const [inviteCode, setInviteCode] = useState(invitedToken ?? '');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // Alert.alert() is a silent no-op on React Native Web — it renders
@@ -81,22 +86,25 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
 
   if (mode === 'choose') {
     return (
-      <SafeAreaView style={styles.container}>
-        <AppLogoHeader compact />
+      <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+        <AppLogoHeader compact withWordmark />
         <Pressable style={styles.primaryButton} onPress={() => goToMode('create')}>
           <Text style={styles.primaryButtonText}>Create family</Text>
         </Pressable>
         <Pressable style={styles.secondaryButton} onPress={() => goToMode('join')}>
           <Text style={styles.secondaryButtonText}>Join with an invite code</Text>
         </Pressable>
-      </SafeAreaView>
+        </View>
+    </SafeAreaView>
     );
   }
 
   if (mode === 'create') {
     return (
-      <SafeAreaView style={styles.container}>
-        <AppLogoHeader compact />
+      <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+        <AppLogoHeader compact withWordmark />
         <Text style={styles.title}>Start your family</Text>
         <Text style={styles.subtitle}>
           Save the cars your family has loved—and the stories that go with them.
@@ -130,21 +138,28 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
         <Pressable onPress={() => goToMode('choose')}>
           <Text style={styles.backLink}>Back</Text>
         </Pressable>
-      </SafeAreaView>
+        </View>
+    </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+      <AppLogoHeader compact withWordmark />
       <Text style={styles.title}>Join a family</Text>
+      {invitedToken ? (
+        <Text style={styles.subtitle}>You’ve been invited. Add your name to join and start adding your cars.</Text>
+      ) : null}
       <TextInput
         style={styles.input}
+        accessibilityLabel="Invite code"
         placeholder="Invite code"
         autoCapitalize="none"
         value={inviteCode}
         onChangeText={setInviteCode}
       />
-      <TextInput style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
+      <TextInput accessibilityLabel="Your name" style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
       {formError ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{formError}</Text>
@@ -156,12 +171,18 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
       <Pressable onPress={() => goToMode('choose')}>
         <Text style={styles.backLink}>Back</Text>
       </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12, backgroundColor: '#EEF4FF' },
+  // Padding lives on an inner View, not on the SafeAreaView itself:
+  // SafeAreaView replaces its own padding with the device's safe-area
+  // insets, so padding set directly on it was silently dropped and the
+  // inputs ran edge to edge.
+  safe: { flex: 1, backgroundColor: '#EEF4FF' },
+  container: { flex: 1, width: '100%', maxWidth: 480, alignSelf: 'center', justifyContent: 'center', padding: 24, gap: 12 },
   title: { fontSize: 26, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
   subtitle: { fontSize: 15, color: '#666', textAlign: 'center', marginBottom: 20 },
   reassurance: { color: '#64748B', fontSize: 13, textAlign: 'center', marginTop: 2 },

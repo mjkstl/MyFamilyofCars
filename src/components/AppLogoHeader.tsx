@@ -1,32 +1,60 @@
 import React from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import { colors, font, space } from '@/theme/tokens';
 
 const logo = require('../../assets/logo.png');
 
-export default function AppLogoHeader({ compact = false }: { compact?: boolean }) {
+/**
+ * The brand mark (a road that branches into a family tree), with an
+ * optional "My Family of Cars" wordmark beneath it.
+ *
+ *   default  — 112px mark, for a screen whose whole job is the brand
+ *   compact  — 84px mark (onboarding, success moments)
+ *   small    — 56px mark for the top of a working screen, where the
+ *              content, not the logo, should own the first screenful
+ *
+ * The wordmark is real text rather than part of the image, so it stays
+ * sharp at any size, respects the user's text-size setting and is read
+ * out by screen readers.
+ */
+export default function AppLogoHeader({
+  compact = false,
+  small = false,
+  withWordmark = false,
+}: {
+  compact?: boolean;
+  small?: boolean;
+  withWordmark?: boolean;
+}) {
+  const size = small ? 56 : compact ? 84 : 112;
   return (
-    <View style={[styles.header, compact && styles.compactHeader]}>
+    <View style={styles.header}>
       <Image
         source={logo}
-        style={[styles.logo, compact && styles.compactLogo]}
+        style={{ width: size, height: size }}
         resizeMode="contain"
-        accessibilityLabel="My Family of Cars logo"
+        // With the wordmark shown, the text names the app — hiding the
+        // image from screen readers avoids announcing it twice.
+        accessible={!withWordmark}
+        accessibilityLabel="My Family of Cars"
       />
+      {withWordmark ? (
+        <Text style={styles.wordmark} accessibilityRole="header">
+          My Family of Cars
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    minHeight: 250,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+  header: { alignItems: 'center', justifyContent: 'center' },
+  wordmark: {
+    fontFamily: font.brandFamily,
+    fontSize: font.title,
+    fontWeight: '800',
+    color: colors.primaryDark,
+    marginTop: space.sm,
+    letterSpacing: 0.2,
   },
-  logo: { width: 210, height: 205, maxWidth: '92%' },
-  compactHeader: { minHeight: 0, paddingVertical: 0, borderBottomWidth: 0, backgroundColor: 'transparent' },
-  compactLogo: { width: 170, height: 170 },
 });

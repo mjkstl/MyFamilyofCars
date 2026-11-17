@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { View, FlatList, StyleSheet, Text, ActivityIndicator, SafeAreaView, Pressable, Alert, Share, TextInput, Modal } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, FlatList, StyleSheet, Text, ActivityIndicator, SafeAreaView, Pressable, TextInput, Modal } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,10 +14,13 @@ import MemberEditModal from '@/components/MemberEditModal';
 import AddFamilyMemberModal from '@/components/AddFamilyMemberModal';
 import AppLogoHeader from '@/components/AppLogoHeader';
 import CollectionCarRow from '@/components/CollectionCarRow';
+import ConfirmModal from '@/components/ConfirmModal';
 import type { TreeStackParamList, RootStackParamList } from '@/navigation/RootNavigator';
 import type { CarStatus, Member } from '@/types/database';
 import { CARS_COLLECTION_CONFIG } from '@/config/collectionTypes';
 import { trackEvent } from '@/services/analytics';
+import { buildInviteUrl, shareInvite } from '@/utils/inviteLink';
+import { colors, font, radius, space, MIN_TAP } from '@/theme/tokens';
 
 // ReorderCars lives on the root stack, one level above this screen's own
 // TreeStack — composing both param lists lets navigation.navigate(...)
@@ -28,10 +31,8 @@ type Nav = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-const SCROLL_PAGE_SIZE = 420;
-
-function getFamilyInviteUrl(inviteCode: string | undefined): string {
-  return `https://my-familyof-cars.vercel.app/?invite=${encodeURIComponent(inviteCode ?? '')}`;
+function describeError(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 export default function MyTreeScreen() {
@@ -39,21 +40,21 @@ export default function MyTreeScreen() {
   const { family, currentMember, rotateInvite } = useFamily();
   const { members, loading, addMemberWithInference, updateMember } = useMembers(family?.id);
   const { cars: allCars, refresh: refreshCars } = useAllFamilyCars(family?.id);
-  const listRef = useRef<FlatList>(null);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [savingMember, setSavingMember] = useState(false);
   const [statusFilter, setStatusFilter] = useState<CarStatus | 'all'>('all');
   const [search, setSearch] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [inviteNotice, setInviteNotice] = useState<string | null>(null);
+  const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
   const [rotating, setRotating] = useState(false);
+  const [rotateError, setRotateError] = useState<string | null>(null);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [savingNewMember, setSavingNewMember] = useState(false);
-
-  // Drives the up/down scroll-arrow pair below.
-  const [scrollY, setScrollY] = useState(0);
-  const [contentHeight, setContentHeight] = useState(0);
-  const [viewportHeight, setViewportHeight] = useState(0);
+  // Errors render ON SCREEN rather than through Alert.alert(): an Alert
+  // shows nothing at all on React Native Web, so a failure there used to
+  // be completely invisible.
+  const [screenError, setScreenError] = useState<string | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -61,9 +62,6 @@ export default function MyTreeScreen() {
     }, [refreshCars]),
   );
 
-  const canScrollUp = scrollY > 4;
-  const canScrollDown = scrollY + viewportHeight < contentHeight - 4;
-  const showArrows = contentHeight > viewportHeight + 4;
   const filteredCars = useMemo(() => {
     const query = search.trim().toLowerCase();
     return allCars.filter((car) => {
@@ -77,54 +75,59 @@ export default function MyTreeScreen() {
     });
   }, [allCars, search, statusFilter]);
 
-  const scrollByPage = (direction: 1 | -1) => {
-    const nextOffset = Math.max(0, scrollY + direction * SCROLL_PAGE_SIZE);
-    listRef.current?.scrollToOffset({ offset: nextOffset, animated: true });
-  };
-
   const carsByMember = (memberId: string) => allCars.filter((c) => c.member_id === memberId);
 
-  const handleInviteFamily = async () => {
+  // The Add Car tab lives on the tab navigator, one level above this
+  // screen's stack — getParent() is that tab navigator.
+  const goToAddCar = () => navigation.getParent()?.navigate('Add Car' as never);
+
+  const openInvite = () => {
     if (!family?.invite_token) {
-      Alert.alert('Invite unavailable', 'Your family invite is not ready yet.');
+      setScreenError('Your family invite is not ready yet. Close and reopen the app, then try again.');
       return;
     }
-    try {
-      await trackEvent('invite_opened', {}, family.id);
-      if (allCars.some((car) => car.photo_url || car.memories)) {
-        await trackEvent('activation_completed', {}, family.id);
-      }
-      setCopied(false);
-      setInviteOpen(true);
-    } catch (err) {
-      Alert.alert('Couldn\u2019t share invite', err instanceof Error ? err.message : String(err));
+    setInviteNotice(null);
+    setInviteOpen(true);
+    // Analytics must never block or break the invite itself.
+    void trackEvent('invite_opened', {}, family.id).catch(() => undefined);
+    if (allCars.some((car) => car.photo_url || car.memories)) {
+      void trackEvent('activation_completed', {}, family.id).catch(() => undefined);
     }
   };
 
-  const handleRotateInvite = () => {
+  const handleShareInvite = async () => {
+    if (!family?.invite_token) return;
+    try {
+      const result = await shareInvite(family.invite_token);
+      if (result === 'copied') setInviteNotice('Invite link copied — paste it into a text or email.');
+    } catch (err) {
+      setInviteNotice(`Couldn’t share the invite: ${describeError(err)}`);
+    }
+  };
+
+  const handleCopyInvite = async () => {
+    if (!family?.invite_token) return;
+    try {
+      await Clipboard.setStringAsync(buildInviteUrl(family.invite_token));
+      setInviteNotice('Invite link copied — paste it into a text or email.');
+    } catch (err) {
+      setInviteNotice(`Couldn’t copy the link: ${describeError(err)}`);
+    }
+  };
+
+  const confirmRotateInvite = async () => {
     if (!family) return;
-    Alert.alert(
-      'Get a new invite link?',
-      'Anyone with the old invite code or link will no longer be able to join using it. This can\u2019t be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Get new invite',
-          style: 'destructive',
-          onPress: async () => {
-            setRotating(true);
-            try {
-              await rotateInvite(family.id);
-              setCopied(false);
-            } catch (err) {
-              Alert.alert('Couldn\u2019t rotate invite', err instanceof Error ? err.message : String(err));
-            } finally {
-              setRotating(false);
-            }
-          },
-        },
-      ]
-    );
+    setRotating(true);
+    setRotateError(null);
+    try {
+      await rotateInvite(family.id);
+      setRotateConfirmOpen(false);
+      setInviteNotice('Done — the old link no longer works. Share the new one below.');
+    } catch (err) {
+      setRotateError(describeError(err));
+    } finally {
+      setRotating(false);
+    }
   };
 
   const handleSaveMember = async (displayName: string, avatarUri: string | null) => {
@@ -134,7 +137,8 @@ export default function MyTreeScreen() {
       await updateMember(editingMember.id, displayName, avatarUri);
       setEditingMember(null);
     } catch (err) {
-      Alert.alert('Couldn\u2019t save', err instanceof Error ? err.message : String(err));
+      setEditingMember(null);
+      setScreenError(`Couldn’t save that family member: ${describeError(err)}`);
     } finally {
       setSavingMember(false);
     }
@@ -151,7 +155,8 @@ export default function MyTreeScreen() {
       });
       setAddMemberOpen(false);
     } catch (err) {
-      Alert.alert('Couldn’t add member', err instanceof Error ? err.message : String(err));
+      setAddMemberOpen(false);
+      setScreenError(`Couldn’t add that family member: ${describeError(err)}`);
     } finally {
       setSavingNewMember(false);
     }
@@ -160,122 +165,139 @@ export default function MyTreeScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
+  const memberCountLabel = `${members.length} ${members.length === 1 ? 'family member' : 'family members'}`;
+  const carCountLabel = `${allCars.length} ${allCars.length === 1 ? 'car' : 'cars'}`;
+
+  const header = (
+    <View>
+      {/* Identity strip: a small logo beside the family name, so the
+          first screenful belongs to the family rather than to a 250px
+          banner. */}
+      <View style={styles.identityRow}>
+        <AppLogoHeader small />
+        <View style={styles.identityText}>
+          <Text style={styles.familyName} numberOfLines={2} accessibilityRole="header">{family?.name}</Text>
+          <Text style={styles.counts} accessibilityLabel={`${memberCountLabel} and ${carCountLabel}`}>
+            {memberCountLabel} · {carCountLabel}
+          </Text>
+        </View>
+      </View>
+
+      {screenError ? (
+        <View style={styles.errorBanner} accessibilityRole="alert">
+          <Text style={styles.errorText}>{screenError}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Dismiss message" hitSlop={10} onPress={() => setScreenError(null)}>
+            <MaterialCommunityIcons name="close" size={18} color={colors.danger} />
+          </Pressable>
+        </View>
+      ) : null}
+
+      {/* One primary action (invite — the growth loop) and one secondary. */}
+      <View style={styles.actionRow}>
+        <Pressable accessibilityRole="button" style={[styles.actionButton, styles.actionPrimary]} onPress={openInvite}>
+          <MaterialCommunityIcons name="account-multiple-plus" size={18} color={colors.white} />
+          <Text style={styles.actionPrimaryText} numberOfLines={1}>Invite family</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" style={[styles.actionButton, styles.actionSecondary]} onPress={() => setAddMemberOpen(true)}>
+          <MaterialCommunityIcons name="plus" size={18} color={colors.primary} />
+          <Text style={styles.actionSecondaryText} numberOfLines={1}>Add member</Text>
+        </Pressable>
+      </View>
+
+      {allCars.length === 0 ? (
+        <View style={styles.firstCarCard}>
+          <Text style={styles.firstCarTitle}>Start with one car</Text>
+          <Text style={styles.firstCarBody}>
+            Your first car, the family wagon, the one that got away — add it and the tree starts to grow.
+          </Text>
+          <Pressable accessibilityRole="button" style={styles.firstCarButton} onPress={goToAddCar}>
+            <Text style={styles.actionPrimaryText}>Add your first car</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      <Text style={styles.sectionTitle} accessibilityRole="header">Family</Text>
+    </View>
+  );
+
+  const footer =
+    allCars.length > 0 ? (
+      <View style={styles.collectionSection}>
+        <Text style={styles.sectionTitle} accessibilityRole="header">All cars</Text>
+        <View style={styles.filterRow}>
+          {CARS_COLLECTION_CONFIG.filters.map(({ value, label }) => (
+            <Pressable
+              key={value}
+              accessibilityRole="button"
+              accessibilityState={{ selected: statusFilter === value }}
+              onPress={() => setStatusFilter(value)}
+              hitSlop={6}
+              style={[styles.filterButton, statusFilter === value && styles.filterButtonActive]}
+            >
+              <Text style={[styles.filterText, statusFilter === value && styles.filterTextActive]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+        {allCars.length >= 8 && (
+          <TextInput
+            accessibilityLabel="Search cars or people"
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search cars or people"
+            placeholderTextColor={colors.faint}
+            style={styles.searchInput}
+          />
+        )}
+        {filteredCars.length === 0 ? (
+          <Text style={styles.emptyCollection}>No cars match this filter.</Text>
+        ) : (
+          <View style={styles.collectionGrid}>
+            {filteredCars.map((car) => {
+              const member = members.find((item) => item.id === car.member_id);
+              return (
+                <Pressable
+                  key={car.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View ${car.year} ${car.make} ${car.model} for ${car.member_display_name}`}
+                  onPress={() => member && navigation.navigate('MemberCarousel', { member })}
+                >
+                  <CollectionCarRow car={car} memberName={car.member_display_name} />
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+      </View>
+    ) : null;
+
   return (
     <SafeAreaView style={styles.safe}>
       <FlatList
-        ref={listRef}
-        style={{ width: '100%', maxWidth: 480, alignSelf: 'center' }}
+        style={styles.listFrame}
         data={members}
         keyExtractor={(m) => m.id}
         numColumns={2}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.list}
-        scrollEventThrottle={16}
-        onScroll={(e) => setScrollY(e.nativeEvent.contentOffset.y)}
-        onContentSizeChange={(_w, h) => setContentHeight(h)}
-        onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
-        ListHeaderComponent={
-          <>
-            <AppLogoHeader />
-            <Text style={styles.familyName}>{family?.name}</Text>
-            <Pressable style={styles.addMemberButton} onPress={() => setAddMemberOpen(true)}>
-              <Text style={styles.addMemberText}>Add family member</Text>
-            </Pressable>
-            <Pressable style={styles.shareButton} onPress={handleInviteFamily}>
-              <Text style={styles.shareButtonText}>Share my family</Text>
-            </Pressable>
-            <Text style={styles.inviteNote}>Invitees can add their cars and memories. Collections remain private by default.</Text>
-            <View style={styles.countRow} accessibilityLabel={`${members.length} family members and ${allCars.length} cars`}>
-              <Text style={styles.countText}>{members.length} {members.length === 1 ? 'Family Member' : 'Family Members'}</Text>
-              <Text style={styles.countDivider}>•</Text>
-              <Text style={styles.countText}>{allCars.length} {allCars.length === 1 ? 'Car' : 'Cars'}</Text>
-            </View>
-            {allCars.length > 0 && (
-              <View style={styles.collectionSection}>
-                <Text style={styles.collectionTitle}>Collection</Text>
-                <View style={styles.filterRow}>
-                  {CARS_COLLECTION_CONFIG.filters.map(({ value, label }) => (
-                    <Pressable
-                      key={value}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: statusFilter === value }}
-                      onPress={() => setStatusFilter(value)}
-                      style={[styles.filterButton, statusFilter === value && styles.filterButtonActive]}
-                    >
-                      <Text style={[styles.filterText, statusFilter === value && styles.filterTextActive]}>{label}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-                {allCars.length >= 8 && (
-                  <TextInput
-                    accessibilityLabel="Search collection"
-                    value={search}
-                    onChangeText={setSearch}
-                    placeholder="Search cars or people"
-                    style={styles.searchInput}
-                  />
-                )}
-                {filteredCars.length === 0 ? (
-                  <Text style={styles.emptyCollection}>No cars match this filter.</Text>
-                ) : (
-                  <View style={styles.collectionGrid}>
-                    {filteredCars.map((car) => {
-                      const member = members.find((item) => item.id === car.member_id);
-                      return (
-                        <Pressable
-                          key={car.id}
-                          accessibilityLabel={`View ${car.year} ${car.make} ${car.model} for ${car.member_display_name}`}
-                          onPress={() => member && navigation.navigate('MemberCarousel', { member })}
-                        >
-                          <CollectionCarRow car={car} memberName={car.member_display_name} />
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
-            )}
-          </>
-        }
+        ListHeaderComponent={header}
+        ListFooterComponent={footer}
         renderItem={({ item }) => (
           <MemberTile
             member={item}
             cars={carsByMember(item.id)}
             onPress={() => navigation.navigate('MemberCarousel', { member: item })}
             onEdit={() => setEditingMember(item)}
-            onReorder={() => navigation.navigate('ReorderCars', { member: item })}
           />
         )}
         ListEmptyComponent={
-          <Text style={styles.empty}>No family members yet — add someone from the Family tab.</Text>
+          <Text style={styles.empty}>No family members yet — tap “Add member” above to add someone.</Text>
         }
       />
-
-      {showArrows && (
-        <View style={styles.scrollArrows}>
-          <Pressable
-            accessibilityLabel="Scroll up"
-            onPress={() => scrollByPage(-1)}
-            disabled={!canScrollUp}
-            style={[styles.scrollArrowButton, !canScrollUp && styles.scrollArrowDisabled]}
-          >
-            <MaterialCommunityIcons name="chevron-up" size={26} color={canScrollUp ? '#1D4ED8' : '#ccc'} />
-          </Pressable>
-          <Pressable
-            accessibilityLabel="Scroll down"
-            onPress={() => scrollByPage(1)}
-            disabled={!canScrollDown}
-            style={[styles.scrollArrowButton, !canScrollDown && styles.scrollArrowDisabled]}
-          >
-            <MaterialCommunityIcons name="chevron-down" size={26} color={canScrollDown ? '#1D4ED8' : '#ccc'} />
-          </Pressable>
-        </View>
-      )}
 
       <MemberEditModal
         member={editingMember}
@@ -292,102 +314,190 @@ export default function MyTreeScreen() {
 
       <Modal visible={inviteOpen} transparent animationType="fade" onRequestClose={() => setInviteOpen(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.inviteCard}>
-            <Text style={styles.inviteTitle}>Share my family</Text>
-            <Text style={styles.inviteBody}>Invitees can add their cars and memories. Your collection remains private by default.</Text>
-            <Text style={styles.inviteCodeLabel}>Invite code</Text>
+          <View style={styles.inviteCard} accessibilityViewIsModal>
+            <Text style={styles.inviteTitle} accessibilityRole="header">Invite your family</Text>
+            <Text style={styles.inviteBody}>
+              Send this link to a relative. Opening it lets them join and add the cars they’ve owned. Your family stays private — only people you invite can see it.
+            </Text>
+
+            <Pressable accessibilityRole="button" style={styles.invitePrimary} onPress={() => void handleShareInvite()}>
+              <MaterialCommunityIcons name="share-variant" size={18} color={colors.white} />
+              <Text style={styles.actionPrimaryText}>Share invite link</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" style={styles.inviteSecondary} onPress={() => void handleCopyInvite()}>
+              <MaterialCommunityIcons name="content-copy" size={16} color={colors.primary} />
+              <Text style={styles.actionSecondaryText}>Copy link</Text>
+            </Pressable>
+
+            {inviteNotice ? <Text style={styles.inviteNotice} accessibilityRole="alert">{inviteNotice}</Text> : null}
+
+            {/* The raw token is a 48-character string nobody should have
+                to type, so it is a small fallback rather than the
+                headline. It stays selectable for copy/paste. */}
+            <Text style={styles.inviteCodeLabel}>Or paste this invite code on the “Join a family” screen</Text>
             <Text style={styles.inviteCode} selectable>{family?.invite_token}</Text>
+
             <Pressable
-              style={styles.copyButton}
-              onPress={async () => {
-                if (family?.invite_token) {
-                  await Clipboard.setStringAsync(family.invite_token);
-                  setCopied(true);
-                }
+              accessibilityRole="button"
+              style={styles.rotateInviteButton}
+              onPress={() => {
+                setRotateError(null);
+                setRotateConfirmOpen(true);
               }}
             >
-              <Text style={styles.shareButtonText}>{copied ? 'Copied' : 'Copy invite code'}</Text>
+              <Text style={styles.rotateInviteText}>Reset invite link</Text>
             </Pressable>
-            <Pressable
-              style={styles.shareInviteButton}
-              onPress={() => Share.share({
-                message: `Join my family on My Family of Cars! Use invite code: ${family?.invite_token}. Open ${getFamilyInviteUrl(family?.invite_token)}`,
-              })}
-            >
-              <Text style={styles.shareInviteText}>Share message</Text>
-            </Pressable>
-            <Pressable style={styles.rotateInviteButton} onPress={handleRotateInvite} disabled={rotating}>
-              {rotating ? (
-                <ActivityIndicator color="#B91C1C" size="small" />
-              ) : (
-                <Text style={styles.rotateInviteText}>Get a new invite link</Text>
-              )}
-            </Pressable>
-            <Pressable onPress={() => setInviteOpen(false)}>
+            <Pressable accessibilityRole="button" style={styles.closeInviteButton} onPress={() => setInviteOpen(false)}>
               <Text style={styles.cancelInviteText}>Close</Text>
             </Pressable>
           </View>
         </View>
-      </Modal>
 
+        {/* Rendered INSIDE the invite modal so it stacks above it on iOS,
+            where two sibling modals cannot be shown at the same time. */}
+        <ConfirmModal
+          visible={rotateConfirmOpen}
+          title="Reset the invite link?"
+          body="Anyone holding the old link or code will no longer be able to join with it. People who already joined are not affected. This can’t be undone."
+          confirmLabel="Reset link"
+          destructive
+          busy={rotating}
+          error={rotateError}
+          onConfirm={() => void confirmRotateInvite()}
+          onCancel={() => setRotateConfirmOpen(false)}
+        />
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  list: { padding: 16 },
-  row: { justifyContent: 'flex-start', gap: 20 },
-  familyName: { fontFamily: 'Trebuchet MS', fontSize: 20, fontWeight: '800', textAlign: 'center', marginTop: 14, marginBottom: 10 },
-  addMemberButton: { alignSelf: 'center', borderWidth: 1, borderColor: '#0F766E', borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, marginBottom: 10 },
-  addMemberText: { color: '#0F766E', fontWeight: '800' },
-  shareButton: { backgroundColor: '#1D4ED8', borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 10 },
-  shareButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  inviteNote: { color: '#64748B', fontSize: 12, lineHeight: 17, textAlign: 'center', marginBottom: 14 },
-  countRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginBottom: 14 },
-  countText: { color: '#0F766E', fontSize: 14, fontWeight: '800' },
-  countDivider: { color: '#94A3B8' },
-  collectionSection: { borderTopWidth: 1, borderTopColor: '#E2E8F0', paddingTop: 14, marginBottom: 14 },
-  collectionTitle: { fontSize: 18, fontWeight: '800', marginBottom: 10 },
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  filterButton: { borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 16, paddingVertical: 7, paddingHorizontal: 10, backgroundColor: '#fff' },
-  filterButtonActive: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
-  filterText: { color: '#334155', fontSize: 12, fontWeight: '600' },
-  filterTextActive: { color: '#fff' },
-  searchInput: { borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 10, padding: 10, marginTop: 10, backgroundColor: '#fff' },
-  emptyCollection: { color: '#64748B', paddingVertical: 16 },
-  collectionGrid: { gap: 12, marginTop: 12 },
-  connectedLabel: { color: '#475569', fontSize: 12, fontWeight: '600', marginTop: -8, marginBottom: 4 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'center', padding: 20 },
-  inviteCard: { backgroundColor: '#fff', borderRadius: 16, padding: 22 },
-  inviteTitle: { fontSize: 21, fontWeight: '800', color: '#0F172A' },
-  inviteBody: { color: '#475569', lineHeight: 19, marginTop: 8 },
-  inviteCodeLabel: { color: '#64748B', fontSize: 12, marginTop: 18 },
-  inviteCode: { fontSize: 26, fontWeight: '800', letterSpacing: 2, marginTop: 4, color: '#0F172A' },
-  copyButton: { backgroundColor: '#1D4ED8', borderRadius: 10, padding: 13, alignItems: 'center', marginTop: 18 },
-  shareInviteButton: { borderWidth: 1, borderColor: '#1D4ED8', borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8 },
-  shareInviteText: { color: '#1D4ED8', fontWeight: '700' },
-  rotateInviteButton: { padding: 10, alignItems: 'center', marginTop: 10 },
-  rotateInviteText: { color: '#B91C1C', fontWeight: '600', fontSize: 13 },
-  cancelInviteText: { color: '#64748B', textAlign: 'center', marginTop: 16 },
-  empty: { textAlign: 'center', color: '#888', marginTop: 40 },
-  offscreen: { position: 'absolute', top: -9999, left: -9999 },
-  scrollArrows: { position: 'absolute', right: 16, bottom: 20, gap: 8 },
-  scrollArrowButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: colors.background },
+  // maxWidth keeps the layout phone-shaped on desktop web / tablets.
+  listFrame: { width: '100%', maxWidth: 480, alignSelf: 'center' },
+  list: { padding: space.lg, paddingBottom: space.xxl },
+  row: { justifyContent: 'space-between' },
+
+  identityRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.lg },
+  identityText: { flex: 1 },
+  familyName: { fontFamily: font.brandFamily, fontSize: font.display, fontWeight: '800', color: colors.ink },
+  counts: { color: colors.muted, fontSize: font.small, fontWeight: '600', marginTop: 2 },
+
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.sm,
+    backgroundColor: colors.dangerSoft,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+    borderRadius: radius.md,
+    padding: space.md,
+    marginBottom: space.lg,
+  },
+  errorText: { flex: 1, color: colors.danger, fontSize: font.small, lineHeight: 19 },
+
+  actionRow: { flexDirection: 'row', gap: space.md, marginBottom: space.xl },
+  actionButton: {
+    flex: 1,
+    minHeight: MIN_TAP + 4,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
+    gap: space.xs,
+    borderRadius: radius.md,
+    // Kept tight so both labels stay on one line on a 320pt-wide phone.
+    paddingHorizontal: space.sm,
   },
-  scrollArrowDisabled: { opacity: 0.5 },
+  actionPrimary: { backgroundColor: colors.primary },
+  actionPrimaryText: { color: colors.white, fontWeight: '700', fontSize: font.label },
+  actionSecondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary },
+  actionSecondaryText: { color: colors.primary, fontWeight: '700', fontSize: font.label },
+
+  firstCarCard: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.lg,
+    padding: space.lg,
+    marginBottom: space.xl,
+  },
+  firstCarTitle: { fontSize: font.heading, fontWeight: '800', color: colors.ink },
+  firstCarBody: { fontSize: font.label, color: colors.text, lineHeight: 20, marginTop: space.xs },
+  firstCarButton: {
+    minHeight: MIN_TAP,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: space.md,
+  },
+
+  sectionTitle: { fontSize: font.heading, fontWeight: '800', color: colors.ink, marginBottom: space.md },
+
+  collectionSection: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: space.xl, marginTop: space.sm },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  filterButton: {
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.pill,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.md,
+    backgroundColor: colors.surface,
+  },
+  filterButtonActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filterText: { color: colors.text, fontSize: font.small, fontWeight: '600' },
+  filterTextActive: { color: colors.white },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.md,
+    padding: space.md,
+    marginTop: space.md,
+    backgroundColor: colors.surface,
+    fontSize: font.body,
+    color: colors.ink,
+  },
+  emptyCollection: { color: colors.muted, paddingVertical: space.lg },
+  collectionGrid: { gap: space.md, marginTop: space.md },
+  empty: { textAlign: 'center', color: colors.muted, marginTop: space.xl, marginBottom: space.xl },
+
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', padding: space.xl },
+  inviteCard: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.xl, width: '100%', maxWidth: 420 },
+  inviteTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
+  inviteBody: { color: colors.text, fontSize: font.label, lineHeight: 20, marginTop: space.sm },
+  invitePrimary: {
+    minHeight: MIN_TAP + 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    marginTop: space.xl,
+  },
+  inviteSecondary: {
+    minHeight: MIN_TAP,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.md,
+    marginTop: space.sm,
+  },
+  inviteNotice: { color: colors.success, fontSize: font.small, fontWeight: '600', marginTop: space.md, lineHeight: 18 },
+  inviteCodeLabel: { color: colors.muted, fontSize: font.tiny, marginTop: space.xl },
+  inviteCode: {
+    fontSize: font.tiny,
+    color: colors.text,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.sm,
+    padding: space.sm,
+    marginTop: space.xs,
+    lineHeight: 18,
+  },
+  rotateInviteButton: { minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center', marginTop: space.md },
+  rotateInviteText: { color: colors.danger, fontWeight: '600', fontSize: font.small },
+  closeInviteButton: { minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center' },
+  cancelInviteText: { color: colors.muted, fontSize: font.label, fontWeight: '600' },
 });

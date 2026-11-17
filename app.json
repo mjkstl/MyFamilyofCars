@@ -8,7 +8,9 @@
     "userInterfaceStyle": "automatic",
     "scheme": "familyofcars",
     "splash": {
-      "backgroundColor": "#0F172A"
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2456D8"
     },
     "ios": {
       "supportsTablet": true,
@@ -23,7 +25,11 @@
       "permissions": [
         "CAMERA",
         "READ_MEDIA_IMAGES"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2456D8"
+      }
     },
     "plugins": [
       [
@@ -35,6 +41,9 @@
       ],
       "expo-asset",
       "expo-font"
-    ]
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
   }
 }

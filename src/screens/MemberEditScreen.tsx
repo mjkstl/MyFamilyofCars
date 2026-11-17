@@ -2,11 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   FlatList,
+  ScrollView,
   StyleSheet,
   Text,
   ActivityIndicator,
   Pressable,
-  Modal,
   useWindowDimensions,
 } from 'react-native';
 import type { RouteProp, CompositeNavigationProp } from '@react-navigation/native';
@@ -17,6 +17,8 @@ import type { TreeStackParamList, RootStackParamList } from '@/navigation/RootNa
 import { useCars } from '@/hooks/useCars';
 import { supabase } from '@/lib/supabase';
 import CarCard from '@/components/CarCard';
+import ConfirmModal from '@/components/ConfirmModal';
+import { colors, font, radius, space, cardShadow, MIN_TAP } from '@/theme/tokens';
 import type { Car, CarFact } from '@/types/database';
 
 type Props = {
@@ -37,6 +39,9 @@ export default function MemberEditScreen({ route, navigation }: Props) {
   const [pageIndex, setPageIndex] = useState(0);
   const listRef = useRef<FlatList>(null);
   const { width: pageWidth } = useWindowDimensions();
+  // The card fills the phone's width (minus a margin) but stops growing
+  // at 440 so it stays a readable card on tablets and desktop web.
+  const cardWidth = Math.min(pageWidth - space.lg * 2, 440);
 
   // Edits, deletes, and reassignments all happen on a screen pushed ON TOP
   // of this one — React Navigation keeps this screen mounted underneath
@@ -96,202 +101,204 @@ export default function MemberEditScreen({ route, navigation }: Props) {
     setPageIndex(clamped);
   };
 
+  const closeDelete = () => {
+    setDeleteTarget(null);
+    setDeleteError(null);
+  };
+
+  const addCar = () => navigation.navigate('AddCarForMember', { member });
+
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
+  const hasCars = cars.length > 0;
+  const hasSeveral = cars.length > 1;
+  const atFirst = pageIndex === 0;
+  const atLast = pageIndex >= cars.length - 1;
+
   return (
-    <View style={{ flex: 1 }}>
-      <FlatList
-        ref={listRef}
-        horizontal
-        pagingEnabled
-        data={cars}
-        keyExtractor={(c) => c.id}
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(e) => {
-          const index = Math.round(e.nativeEvent.contentOffset.x / pageWidth);
-          setPageIndex(index);
-        }}
-        getItemLayout={(_data, index) => ({ length: pageWidth, offset: pageWidth * index, index })}
-        renderItem={({ item }) => (
-          <View style={[styles.page, { width: pageWidth }]}>
-            <CarCard
-              car={item}
-              fact={factsByCarId[item.id] ?? null}
-              onEdit={() => handleEditCar(item)}
-              onDelete={() => setDeleteTarget(item)}
-            />
-          </View>
-        )}
-        ListEmptyComponent={
-          <View style={[styles.empty, { width: pageWidth }]}>
-            <Text style={styles.emptyText}>
-              {member.display_name} doesn't have any cars yet — tap + to add one.
-            </Text>
-          </View>
-        }
-      />
-
-      {cars.length > 1 && (
-        <>
-          <Pressable
-            accessibilityLabel="Previous car"
-            style={[styles.navArrow, styles.navArrowLeft, pageIndex === 0 && styles.navArrowDisabled]}
-            onPress={() => goToPage(pageIndex - 1)}
-            disabled={pageIndex === 0}
-          >
-            <MaterialCommunityIcons name="chevron-left" size={28} color={pageIndex === 0 ? '#ccc' : '#1D4ED8'} />
+    <View style={styles.screen}>
+      {hasCars ? (
+        <FlatList
+          ref={listRef}
+          horizontal
+          pagingEnabled
+          data={cars}
+          keyExtractor={(c) => c.id}
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={32}
+          // onScroll (not only onMomentumScrollEnd) keeps "2 of 5" right
+          // on web too, where momentum events do not fire reliably.
+          onScroll={(e) => {
+            const index = Math.round(e.nativeEvent.contentOffset.x / pageWidth);
+            if (index !== pageIndex && index >= 0 && index < cars.length) setPageIndex(index);
+          }}
+          getItemLayout={(_data, index) => ({ length: pageWidth, offset: pageWidth * index, index })}
+          renderItem={({ item }) => (
+            // Each page scrolls vertically on its own, so a long story is
+            // never cut off by the bottom bar on a small phone.
+            <ScrollView style={{ width: pageWidth }} contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
+              <CarCard
+                car={item}
+                fact={factsByCarId[item.id] ?? null}
+                width={cardWidth}
+                onEdit={() => handleEditCar(item)}
+                onDelete={() => setDeleteTarget(item)}
+              />
+            </ScrollView>
+          )}
+        />
+      ) : (
+        <View style={styles.empty}>
+          <MaterialCommunityIcons name="car-side" size={44} color={colors.faint} />
+          <Text style={styles.emptyTitle}>No cars yet</Text>
+          <Text style={styles.emptyText}>
+            Add the first car {member.display_name} ever drove, or the one in the driveway today.
+          </Text>
+          <Pressable accessibilityRole="button" style={styles.emptyButton} onPress={addCar}>
+            <MaterialCommunityIcons name="plus" size={18} color={colors.white} />
+            <Text style={styles.emptyButtonText}>Add a car for {member.display_name}</Text>
           </Pressable>
-          <Pressable
-            accessibilityLabel="Next car"
-            style={[styles.navArrow, styles.navArrowRight, pageIndex === cars.length - 1 && styles.navArrowDisabled]}
-            onPress={() => goToPage(pageIndex + 1)}
-            disabled={pageIndex === cars.length - 1}
-          >
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={28}
-              color={pageIndex === cars.length - 1 ? '#ccc' : '#1D4ED8'}
-            />
-          </Pressable>
-          <View style={styles.pageDots}>
-            {cars.map((c, i) => (
-              <View key={c.id} style={[styles.dot, i === pageIndex && styles.dotActive]} />
-            ))}
-          </View>
-        </>
+        </View>
       )}
 
-      <Pressable
-        accessibilityLabel={`Add a car for ${member.display_name}`}
-        style={styles.fab}
-        onPress={() => navigation.navigate('AddCarForMember', { member })}
-      >
-        <Text style={styles.fabIcon}>+</Text>
-      </Pressable>
-
-      {cars.length > 1 && (
-        <Pressable
-          style={styles.reorderButton}
-          onPress={() => navigation.navigate('ReorderCars', { member })}
-        >
-          <MaterialCommunityIcons name="swap-vertical" size={16} color="#1D4ED8" />
-          <Text style={styles.reorderButtonText}>Reorder</Text>
-        </Pressable>
-      )}
-
-      <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={() => setDeleteTarget(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Delete this car?</Text>
-            {deleteTarget && (
-              <Text style={styles.modalBody}>
-                {deleteTarget.year} {deleteTarget.make} {deleteTarget.model} will be permanently removed from{' '}
-                {member.display_name}'s carousel. This can't be undone.
-              </Text>
-            )}
-            {deleteError && <Text style={styles.modalError}>{deleteError}</Text>}
-            <View style={styles.modalActions}>
+      {/* One bottom bar holds every control, in fixed places, instead of
+          arrows floating over the middle of the card. */}
+      {hasCars ? (
+        <View style={styles.bottomBar}>
+          <View style={styles.barSide}>
+            {hasSeveral ? (
               <Pressable
-                style={styles.modalCancelButton}
-                onPress={() => {
-                  setDeleteTarget(null);
-                  setDeleteError(null);
-                }}
-                disabled={deleting}
+                accessibilityRole="button"
+                accessibilityLabel="Reorder cars"
+                style={styles.reorderButton}
+                onPress={() => navigation.navigate('ReorderCars', { member })}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <MaterialCommunityIcons name="swap-vertical" size={18} color={colors.primary} />
+                {/* On the narrowest phones (320pt) the word would collide
+                    with the pager, so the button falls back to its icon;
+                    the accessibility label still says "Reorder cars". */}
+                {pageWidth >= 360 ? <Text style={styles.reorderButtonText}>Reorder</Text> : null}
               </Pressable>
-              <Pressable style={styles.modalDeleteButton} onPress={confirmDelete} disabled={deleting}>
-                {deleting ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalDeleteText}>Delete</Text>}
+            ) : null}
+          </View>
+
+          {hasSeveral ? (
+            <View style={styles.pager}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Previous car"
+                style={[styles.pagerArrow, atFirst && styles.pagerArrowDisabled]}
+                onPress={() => goToPage(pageIndex - 1)}
+                disabled={atFirst}
+              >
+                <MaterialCommunityIcons name="chevron-left" size={26} color={atFirst ? colors.faint : colors.primary} />
+              </Pressable>
+              <Text style={styles.pagerText} accessibilityLabel={`Car ${pageIndex + 1} of ${cars.length}`}>
+                {pageIndex + 1} of {cars.length}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Next car"
+                style={[styles.pagerArrow, atLast && styles.pagerArrowDisabled]}
+                onPress={() => goToPage(pageIndex + 1)}
+                disabled={atLast}
+              >
+                <MaterialCommunityIcons name="chevron-right" size={26} color={atLast ? colors.faint : colors.primary} />
               </Pressable>
             </View>
+          ) : null}
+
+          <View style={[styles.barSide, styles.barSideRight]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Add a car for ${member.display_name}`}
+              style={styles.addButton}
+              onPress={addCar}
+            >
+              <MaterialCommunityIcons name="plus" size={26} color={colors.white} />
+            </Pressable>
           </View>
         </View>
-      </Modal>
+      ) : null}
+
+      <ConfirmModal
+        visible={!!deleteTarget}
+        title="Delete this car?"
+        body={
+          deleteTarget
+            ? `${deleteTarget.year} ${deleteTarget.make} ${deleteTarget.model} will be permanently removed from ${member.display_name}’s cars, along with its story. This can’t be undone.`
+            : ''
+        }
+        confirmLabel="Delete"
+        destructive
+        busy={deleting}
+        error={deleteError}
+        onConfirm={() => void confirmDelete()}
+        onCancel={closeDelete}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  page: { alignItems: 'center', justifyContent: 'center', padding: 16 },
-  empty: { alignItems: 'center', justifyContent: 'center', padding: 20 },
-  emptyText: { color: '#888', textAlign: 'center' },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#1D4ED8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  fabIcon: { color: '#fff', fontSize: 30, fontWeight: '400', lineHeight: 32 },
-  reorderButton: {
-    position: 'absolute',
-    left: 20,
-    bottom: 28,
+  screen: { flex: 1, backgroundColor: colors.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+  page: { alignItems: 'center', padding: space.lg, paddingBottom: space.xxl },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xxl, gap: space.sm },
+  emptyTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink, marginTop: space.sm },
+  emptyText: { color: colors.muted, textAlign: 'center', fontSize: font.label, lineHeight: 20, maxWidth: 320 },
+  emptyButton: {
+    minHeight: MIN_TAP + 4,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
+    gap: space.sm,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingHorizontal: space.xl,
+    marginTop: space.lg,
   },
-  reorderButtonText: { color: '#1D4ED8', fontWeight: '600', fontSize: 13 },
-  navArrow: {
-    position: 'absolute',
-    top: '42%',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
+  emptyButtonText: { color: colors.white, fontWeight: '700', fontSize: font.label },
+  bottomBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  barSide: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  barSideRight: { justifyContent: 'flex-end' },
+  reorderButton: {
+    minHeight: MIN_TAP,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    paddingHorizontal: space.md,
+    minWidth: MIN_TAP,
+    justifyContent: 'center',
+  },
+  reorderButtonText: { color: colors.primary, fontWeight: '700', fontSize: font.small },
+  pager: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  pagerArrow: { width: MIN_TAP, height: MIN_TAP, borderRadius: MIN_TAP / 2, alignItems: 'center', justifyContent: 'center' },
+  pagerArrowDisabled: { opacity: 0.5 },
+  pagerText: { color: colors.text, fontSize: font.label, fontWeight: '700', minWidth: 56, textAlign: 'center' },
+  addButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
+    ...cardShadow,
   },
-  navArrowLeft: { left: 10 },
-  navArrowRight: { right: 10 },
-  navArrowDisabled: { opacity: 0.4 },
-  pageDots: { position: 'absolute', bottom: 90, alignSelf: 'center', flexDirection: 'row', gap: 6 },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#D1D5DB' },
-  dotActive: { backgroundColor: '#1D4ED8', width: 18 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  modalCard: { backgroundColor: '#fff', borderRadius: 16, padding: 20, width: '100%', maxWidth: 380 },
-  modalTitle: { fontSize: 17, fontWeight: '700', marginBottom: 8 },
-  modalBody: { fontSize: 14, color: '#444', lineHeight: 20 },
-  modalError: { fontSize: 13, color: '#DC2626', marginTop: 10 },
-  modalActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  modalCancelButton: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
-  modalCancelText: { color: '#333', fontWeight: '600' },
-  modalDeleteButton: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#DC2626', alignItems: 'center' },
-  modalDeleteText: { color: '#fff', fontWeight: '700' },
 });
-

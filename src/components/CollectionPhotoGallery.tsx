@@ -36,8 +36,8 @@ export default function CollectionPhotoGallery({
 }
 
 const styles = StyleSheet.create({
-  photo: { width: '100%', borderRadius: 12, backgroundColor: '#E2E8F0' },
-  fallback: { width: '100%', borderRadius: 12, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  photo: { width: '100%', borderRadius: 12, backgroundColor: '#F1F5F9' },
+  fallback: { borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
   fallbackText: { color: '#64748B', fontWeight: '600' },
   caption: { color: '#475569', fontSize: 12, marginTop: -24, marginHorizontal: 10, backgroundColor: 'rgba(255,255,255,0.9)', padding: 4, borderRadius: 4 },
 });
