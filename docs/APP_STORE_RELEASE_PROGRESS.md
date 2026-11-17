@@ -314,6 +314,20 @@ what's next, anything discovered that changes the plan.)*
       visual pass.
   - **Next:** Malcolm runs the Expo Go checklist (guide section 3) and
     merges if it passes. Then Phase 2B.
+  - **Expo Go test, round 1 (same day).** App loads on Malcolm's iPhone
+    (after signing in to the same Expo account in Expo Go and
+    `npx expo login` — now in the guide). Two defects found and fixed on
+    the branch:
+    - *Bug (pre-existing, not from the upgrade):* "Create" showed "Cannot
+      read property 'search' of undefined". Referral lookup read
+      `window.location` on iOS, and analytics errors were re-thrown after
+      the family had already been saved. Fixed + 5 regression tests
+      (commit 845fb81). Note: the family from that attempt WAS created in
+      live Supabase.
+    - *UI track:* placeholder text too faint. New `colors.placeholder`
+      token (#64748B, 4.8:1) on all 19 inputs (commit 5ff54a6).
+    - Gate after both: typecheck 0, lint 0 errors / 6 warnings, jest
+      15/15, web + iOS bundle 0. Next: re-test checklist items 1–8.
 
 - **Session 3 — 2026-11-17.** `docs/RELEASE_GUIDE.md` added: the short
   ordered list of what is left and who does it — read it first.
