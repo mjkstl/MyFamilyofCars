@@ -13,10 +13,12 @@ import AddCarScreen from '@/screens/AddCarScreen';
 import CarReorderScreen from '@/screens/CarReorderScreen';
 import StorybookScreen from '@/screens/StorybookScreen';
 import PrintPreviewScreen from '@/screens/PrintPreviewScreen';
+import SettingsScreen from '@/screens/SettingsScreen';
 import type { Car, Member } from '@/types/database';
 
 export type TreeStackParamList = {
   TreeHome: undefined;
+  Settings: undefined;
   MemberCarousel: { member: Member };
   // Reached via the "+" (add) or edit link (edit) on a member's carousel.
   // When `car` is present, AddCarScreen renders in edit mode for that
@@ -52,6 +54,7 @@ function TreeStackNavigator() {
   return (
     <TreeStack.Navigator screenOptions={{ headerTitleStyle: { fontFamily: 'Trebuchet MS', fontWeight: '800' } }}>
       <TreeStack.Screen name="TreeHome" component={MyTreeScreen} options={{ title: 'Family Tree' }} />
+      <TreeStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
       <TreeStack.Screen
         name="MemberCarousel"
         component={MemberEditScreen}

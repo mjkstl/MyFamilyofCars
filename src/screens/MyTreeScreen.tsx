@@ -186,6 +186,15 @@ export default function MyTreeScreen() {
             {memberCountLabel} · {carCountLabel}
           </Text>
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          style={styles.settingsButton}
+          hitSlop={6}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <MaterialCommunityIcons name="cog-outline" size={22} color={colors.text} />
+        </Pressable>
       </View>
 
       {screenError ? (
@@ -381,6 +390,7 @@ const styles = StyleSheet.create({
 
   identityRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.lg },
   identityText: { flex: 1 },
+  settingsButton: { width: MIN_TAP, height: MIN_TAP, borderRadius: MIN_TAP / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceAlt },
   familyName: { fontFamily: font.brandFamily, fontSize: font.display, fontWeight: '800', color: colors.ink },
   counts: { color: colors.muted, fontSize: font.small, fontWeight: '600', marginTop: 2 },
 

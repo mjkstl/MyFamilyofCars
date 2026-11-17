@@ -185,49 +185,20 @@ export function useFamily() {
     const displayName = yourDisplayName.trim();
     const INVITE_NOT_FOUND = 'Invite code not found — double-check it and try again.';
 
-    // Preferred path (see 0008_close_family_access_gaps.sql): ONE
-    // server-side call validates the invite and adds this session as a
-    // member. The client never inserts into `members` itself, so there
-    // is no way to join a family without a valid invite. The function
-    // is idempotent — retrying after a dropped connection returns the
-    // same member instead of creating a second one.
-    let member: Member;
+    // ONE server-side call validates the invite and adds this session
+    // as a member (see 0008_close_family_access_gaps.sql). The client
+    // never inserts into `members` itself, so there is no way to join a
+    // family without a valid invite. The function is idempotent —
+    // retrying after a dropped connection returns the same member
+    // instead of creating a second one.
     const { data: joined, error: joinErr } = await supabase.rpc('join_family_with_invite', {
       p_code: code,
       p_display_name: displayName,
     });
-
-    if (!joinErr && joined) {
-      member = joined as Member;
-    } else if (joinErr && (joinErr.code === 'PGRST202' || joinErr.code === '42883')) {
-      // TRANSITIONAL FALLBACK — delete once migration 0008 is confirmed
-      // live. PGRST202 / 42883 mean "that function does not exist yet",
-      // i.e. this app build reached a database where 0008 has not been
-      // applied. Fall back to the pre-0008 flow so joining keeps working
-      // during the rollout window.
-      const { data: inviteData, error: inviteErr } = await supabase
-        .rpc('lookup_invite', { p_code: code })
-        .single();
-      if (inviteErr || !inviteData) throw new Error(INVITE_NOT_FOUND);
-      const invite = inviteData as { family_id: string; family_name: string };
-
-      const freshSession = await ensureAnonymousSession();
-      if (!freshSession) throw new Error('No auth session.');
-
-      const { data: inserted, error: memErr } = await supabase
-        .from('members')
-        .insert({ family_id: invite.family_id, display_name: displayName, user_id: freshSession.user.id })
-        .select()
-        .single();
-      if (memErr) throw toDescriptiveError(memErr, 'adding you to the family');
-      member = inserted as Member;
-    } else if (joinErr?.code === 'P0002') {
-      throw new Error(INVITE_NOT_FOUND);
-    } else if (joinErr) {
-      throw toDescriptiveError(joinErr, 'joining the family');
-    } else {
-      throw new Error('Joining the family returned no result. Please try again.');
-    }
+    if (joinErr?.code === 'P0002') throw new Error(INVITE_NOT_FOUND);
+    if (joinErr) throw toDescriptiveError(joinErr, 'joining the family');
+    if (!joined) throw new Error('Joining the family returned no result. Please try again.');
+    const member = joined as Member;
 
     // Only now — after the step above has made this session a real
     // member — does normal RLS ("families are visible to their creator

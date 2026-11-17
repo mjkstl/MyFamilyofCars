@@ -109,10 +109,8 @@ original request is lost.
 - [ ] **Phase 2 — RLS & privacy fixes** *(split into 2A and 2B — each
       independently completable, per the "never leave things half-done"
       rule)*
-  - [ ] **Phase 2A — Family access lockdown: code complete, migration
-        0007 applied on live Supabase, but NOT verified — an out-of-band
-        policy (`families_select_any_authenticated`) currently re-opens
-        the hole. See Session 2 in the log. Needs migration 0008.**
+  - [x] **Phase 2A — Family access lockdown: COMPLETE and verified
+        live 2026-11-17** (migrations 0007 + 0008; see Session 3).
     - [x] New migration `0007_secure_family_invite_access.sql`:
           - Drops the broad `"families can be found by invite code"`
             policy (`invite_code is not null` was true for every row —
@@ -242,6 +240,30 @@ original request is lost.
 
 *(Newest entry at the top. Each entry: date, what was completed/verified,
 what's next, anything discovered that changes the plan.)*
+
+- **Session 3 — 2026-11-17.** `docs/RELEASE_GUIDE.md` added: the short
+  ordered list of what is left and who does it — read it first.
+  - **Migration 0008 APPLIED to live Supabase and verified live.** A
+    self-undoing check run in the SQL editor as a real non-member user:
+    target family rows visible 0; member rows visible 0; direct insert
+    refused by RLS; bad code → "Invite not found"; valid invite joins
+    and the family becomes visible (then rolled back); 0 leftover test
+    rows; 0 loose policies remaining; immutability trigger present —
+    8 of 8. Deployed web bundle confirmed to contain the new join call
+    before the migration ran. **Phase 2A is now complete AND verified.**
+  - Transitional join fallback removed from `useFamily.ts`.
+  - **Phase 4 shell built:** `SettingsScreen`, `src/config/legal.ts`,
+    public `privacy.html` / `terms.html` / `support.html`. Blocked on a
+    real support email (placeholder + visible in-app warning) and legal
+    review. Deletion / member removal / reports are email requests
+    until Phases 6 and 7.
+  - **Phase 9 draft:** `docs/PRIVACY_DATA_INVENTORY.md`.
+  - **Phase 10 start:** 10 jest tests; `supabase/tests/` access checks
+    (17 of 17 on local Postgres 16, running migrations 0001–0008).
+  - Merged two GitHub-only commits from 2026-10-04 that were never
+    pulled locally (UI notes file; CarCard 4:3 photo box — kept).
+  - Verified: typecheck 0, lint 0 errors (6 known warnings), jest 10/10,
+    web build 0. NOT verified: real iPhone; mailto links on a device.
 
 - **Session 2 (continued) — 2026-11-16, policy audit + migration 0008.**
   Ran a read-only `pg_policies` query on live Supabase (35 policies).
