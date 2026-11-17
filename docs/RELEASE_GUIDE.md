@@ -43,7 +43,7 @@ remaining gaps are photo privacy (Phase 2B) and real accounts (Phases 5–6).
 | 4 | Decide: iPad support on or off for v1 | Before enrollment | `app.json` has `supportsTablet: true`, so Apple reviews an iPad layout nobody designed. Recommendation: set it to `false`. | 1 min |
 | 5 | Have someone qualified read the Privacy Policy and Terms drafts | Before submission | They are drafts written from the code, not legal advice. | — |
 | 6 | **Enroll in the Apple Developer Program as an individual** ($99/yr, developer.apple.com) | **After Phases 2B, 5, 6 and 7 are done** | Needed for TestFlight, real iPhone builds and submission. Approval is not instant — allow a few days. As an individual, the App Store shows your personal legal name as the seller. Apple lets an individual account be converted to an organization later if that ever matters. | 15 min + wait |
-| 7 | Create a free expo.dev account | Just before enrollment | Needed for cloud iPhone builds (EAS). You are on Windows, so builds happen in Expo's cloud — no Mac needed. **Not** needed for Expo Go testing. | 10 min |
+| 7 | Create a free expo.dev account | **Now** | Expo Go on a real iPhone only opens a project when Expo Go **and** the terminal (`npx expo login`) are signed in to the **same** Expo account (found 2026-11-17 — the first version of this guide got this wrong). Also needed later for cloud iPhone builds (EAS). | 10 min |
 
 ## 3. Testing on your iPhone with Expo Go (do this next)
 
@@ -91,13 +91,18 @@ easy to find and delete later.
    you already have it). The App Store version runs SDK 58. If it is ever
    on a different SDK, Expo Go says so when you open the project
    ("incompatible SDK version") — send Larry that message.
-2. Make sure the iPhone and the PC are on the **same Wi-Fi network**.
-3. In the terminal, type `npx expo start` and press Enter. After a few
+2. **Sign in on both sides with the same free expo.dev account.**
+   On the PC: run `npx expo login` in the project terminal and follow the
+   browser sign-in. On the iPhone: open Expo Go → **Home** → tap the
+   round avatar icon (top right) → sign in. Without this, Expo Go shows
+   "You need to be signed in to Expo Go and Expo CLI".
+3. Make sure the iPhone and the PC are on the **same Wi-Fi network**.
+4. In the terminal, type `npx expo start` and press Enter. After a few
    seconds a QR code appears in the terminal.
-4. On the iPhone, open the regular **Camera** app and point it at the QR
+5. On the iPhone, open the regular **Camera** app and point it at the QR
    code. Tap the "Open in Expo Go" banner. The first load takes up to a
    minute.
-5. If the phone cannot connect (spinner forever, or "could not connect to
+6. If the phone cannot connect (spinner forever, or "could not connect to
    development server"): press `Ctrl + C` in the terminal to stop, then
    run `npx expo start --tunnel` instead and scan the new QR code. Windows
    Firewall may ask whether to allow Node.js — choose **Allow**.
