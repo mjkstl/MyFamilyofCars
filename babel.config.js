@@ -11,8 +11,11 @@ module.exports = function (api) {
           extensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
         },
       ],
-      // Must be listed last — react-native-reanimated's own docs require this.
-      "react-native-reanimated/plugin",
+      // No reanimated/worklets plugin here on purpose. Since SDK 54
+      // (Reanimated 4), babel-preset-expo adds `react-native-worklets/plugin`
+      // automatically when react-native-worklets is installed. Listing
+      // `react-native-reanimated/plugin` here as well would run the same
+      // plugin twice.
     ],
   };
 };
