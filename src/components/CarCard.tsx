@@ -151,7 +151,12 @@ const styles = StyleSheet.create({
     padding: space.lg,
     ...cardShadow,
   },
-  photo: { width: '100%', height: 200, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, marginBottom: space.lg },
+  // A 4:3 box that scales with the card, not a fixed height. A fixed
+  // height is right for exactly one card width; on a wider or narrower
+  // screen a photo shown with resizeMode="contain" ends up either tiny
+  // inside a letterbox or short of room. (Carried over from the
+  // 2026-10-04 fix, UI_ITERATION_NOTES.md item #6.)
+  photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, marginBottom: space.lg },
   photoFallback: {
     alignItems: 'center',
     justifyContent: 'center',
